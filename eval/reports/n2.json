@@ -6,12 +6,20 @@
   "polluters": [],
   "original_failing_order": [
     {
+      "class": "odfixture.AlwaysEarlyVictimTest",
+      "method": "expectsLateFlagUnset"
+    },
+    {
       "class": "odfixture.ConfigPolluterTest",
       "method": "pollute"
     },
     {
       "class": "odfixture.ConfigVictimTest",
       "method": "expectsDefaultMode"
+    },
+    {
+      "class": "odfixture.EnvDependentNegativeTest",
+      "method": "onlyFailsUnderCI"
     },
     {
       "class": "odfixture.FeaturePolluterTest",
@@ -45,19 +53,19 @@
     }
   ],
   "reproduction": {
-    "successes": 9,
+    "successes": 11,
     "n": 20,
     "confidence": 0.95,
-    "lower": 0.25819785813113566,
-    "upper": 0.6579146576959403
+    "lower": 0.34208534230405974,
+    "upper": 0.7418021418688643
   },
-  "sequence_any_signature_failures": 9,
+  "sequence_any_signature_failures": 11,
   "victim_alone": {
-    "successes": 9,
+    "successes": 11,
     "n": 20,
     "confidence": 0.95,
-    "lower": 0.25819785813113566,
-    "upper": 0.6579146576959403
+    "lower": 0.34208534230405974,
+    "upper": 0.7418021418688643
   },
   "shared_resource": null,
   "polluter_write_location": null,
@@ -68,10 +76,10 @@
     "stack_trace": "org.junit.Assert.fail:87\norg.junit.Assert.assertTrue:42\norg.junit.Assert.assertTrue:53\nodfixture.NegativeFlakyTest.sometimesFails:24"
   },
   "instrumentation_level": "static-only",
-  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T105812Z-odfixture.NegativeFlakyTest#sometimesFails.jsonl",
+  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T162324Z-odfixture.NegativeFlakyTest#sometimesFails.jsonl",
   "source_integrity": {
     "passed": true,
-    "details": "19 files hashed (SHA-256) before and after; all identical"
+    "details": "23 files hashed (SHA-256) before and after; all identical"
   },
   "outcome": "UNRESOLVED",
   "unresolved_reason": "VICTIM_FAILS_ALONE",

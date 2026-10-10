@@ -13,6 +13,7 @@ from eval.outcome import (
     REASON_VICTIM_FAILS_ALONE,
     REASON_NOT_REPRODUCED,
     REASON_SIGNATURE_MISMATCH,
+    REASON_INFRASTRUCTURE_FAILURE,
     REASON_NO_SUPPORTED_RESOURCE_EVIDENCE,
     REASON_SOURCE_INTEGRITY_FAILED,
 )
@@ -55,8 +56,28 @@ class TestDecisionTableRows(unittest.TestCase):
         self.assertEqual(decision.outcome, OUTCOME_UNRESOLVED)
         self.assertEqual(decision.unresolved_reason, REASON_NOT_REPRODUCED)
 
-    def test_row3b_signature_mismatch(self):
+    def test_row3b_infrastructure_failure(self):
+        """ADR-008: every any-signature failure was a crash/timeout, no real exception."""
+        d = DecisionInput(**base_kwargs(
+            sequence_successes=0, sequence_failures_any=5, infrastructure_failures=5,
+        ))
+        decision = decide(d)
+        self.assertEqual(decision.outcome, OUTCOME_UNRESOLVED)
+        self.assertEqual(decision.unresolved_reason, REASON_INFRASTRUCTURE_FAILURE)
+
+    def test_row3b_infrastructure_failure_is_unreachable_by_default(self):
+        """Pre-ADR-008 behaviour is exactly preserved when a caller never reports
+        infrastructure_failures: any any-signature failure reads as SIGNATURE_MISMATCH."""
         d = DecisionInput(**base_kwargs(sequence_successes=0, sequence_failures_any=5))
+        self.assertEqual(d.infrastructure_failures, 0)
+        decision = decide(d)
+        self.assertEqual(decision.unresolved_reason, REASON_SIGNATURE_MISMATCH)
+
+    def test_row3c_signature_mismatch(self):
+        """At least one failure was a real, different exception -- not infrastructure-only."""
+        d = DecisionInput(**base_kwargs(
+            sequence_successes=0, sequence_failures_any=5, infrastructure_failures=3,
+        ))
         decision = decide(d)
         self.assertEqual(decision.outcome, OUTCOME_UNRESOLVED)
         self.assertEqual(decision.unresolved_reason, REASON_SIGNATURE_MISMATCH)
@@ -104,6 +125,12 @@ class TestDecisionInputValidation(unittest.TestCase):
     def test_confidence_out_of_range_raises(self):
         with self.assertRaises(ValueError):
             DecisionInput(**base_kwargs(confidence=1.0))
+
+    def test_infrastructure_failures_exceeding_failures_any_raises(self):
+        with self.assertRaises(ValueError):
+            DecisionInput(**base_kwargs(
+                sequence_successes=0, sequence_failures_any=5, infrastructure_failures=6,
+            ))
 
 
 if __name__ == "__main__":

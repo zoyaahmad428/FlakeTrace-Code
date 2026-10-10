@@ -8,7 +8,9 @@ Decision table (confirmed with Member 3 on 2026-10-08; first match wins):
      failed with the SAME signature as the reference failure)
   3. sequence never reproduces that signature  (sequence_successes == 0):
        a. and never failed at all              -> UNRESOLVED(NOT_REPRODUCED)
-       b. but failed with a different signature -> UNRESOLVED(SIGNATURE_MISMATCH)
+       b. failed only with crashes/timeouts, no real failure at all
+          (sequence_failures_any == infrastructure_failures > 0) -> UNRESOLVED(INFRASTRUCTURE_FAILURE)
+       c. failed with a real but different signature -> UNRESOLVED(SIGNATURE_MISMATCH)
   4. sequence reproduces it at least once       (sequence_successes >= 1):
        a. no polluter-write/victim-read resource edge -> UNRESOLVED(NO_SUPPORTED_RESOURCE_EVIDENCE)
        b. resource edge exists, Wilson lower bound >= threshold -> VERIFIED
@@ -21,6 +23,16 @@ above the confidence threshold.
 BELOW_CONFIDENCE_THRESHOLD stays in the schema's unresolved-reason enum (the
 brief requires it "at least"), but this decision function never emits it --
 case 4c uses CANDIDATE instead, per the 2026-10-08 team decision.
+
+Row 3b (INFRASTRUCTURE_FAILURE, ADR-008, 2026-10-10) distinguishes "the sequence
+never produced a real failure, only crashes/timeouts" from row 3c
+(SIGNATURE_MISMATCH, "it failed for real but not the reference bug") -- before
+this, a crash-only sequence read as SIGNATURE_MISMATCH, which suggests a
+different real bug rather than a tooling/infrastructure problem.
+`infrastructure_failures` defaults to 0, so a caller that has not counted this
+(every pre-ADR-008 caller) gets exactly the old row 3c (SIGNATURE_MISMATCH)
+behaviour whenever `sequence_failures_any > 0` -- row 3b is unreachable unless
+a caller actually reports `infrastructure_failures > 0`.
 """
 
 from dataclasses import dataclass
@@ -36,6 +48,7 @@ VALID_OUTCOMES = (OUTCOME_VERIFIED, OUTCOME_CANDIDATE, OUTCOME_UNRESOLVED)
 REASON_VICTIM_FAILS_ALONE = "VICTIM_FAILS_ALONE"
 REASON_NOT_REPRODUCED = "NOT_REPRODUCED"
 REASON_SIGNATURE_MISMATCH = "SIGNATURE_MISMATCH"
+REASON_INFRASTRUCTURE_FAILURE = "INFRASTRUCTURE_FAILURE"
 REASON_NO_SUPPORTED_RESOURCE_EVIDENCE = "NO_SUPPORTED_RESOURCE_EVIDENCE"
 REASON_BELOW_CONFIDENCE_THRESHOLD = "BELOW_CONFIDENCE_THRESHOLD"  # reserved, unused by decide()
 REASON_SOURCE_INTEGRITY_FAILED = "SOURCE_INTEGRITY_FAILED"
@@ -43,6 +56,7 @@ VALID_UNRESOLVED_REASONS = (
     REASON_VICTIM_FAILS_ALONE,
     REASON_NOT_REPRODUCED,
     REASON_SIGNATURE_MISMATCH,
+    REASON_INFRASTRUCTURE_FAILURE,
     REASON_NO_SUPPORTED_RESOURCE_EVIDENCE,
     REASON_BELOW_CONFIDENCE_THRESHOLD,
     REASON_SOURCE_INTEGRITY_FAILED,
@@ -63,6 +77,10 @@ class DecisionInput:
     resource_edge_exists: bool
     confidence: float = DEFAULT_CONFIDENCE
     lower_bound_threshold: float = DEFAULT_LOWER_BOUND_THRESHOLD
+    infrastructure_failures: int = 0
+    """How many of sequence_failures_any were a crash/timeout, not a real but
+    different exception (ADR-008). Defaults to 0: a caller that has not
+    counted this gets exactly the pre-ADR-008 SIGNATURE_MISMATCH behaviour."""
 
     def __post_init__(self):
         if self.isolation_n <= 0:
@@ -89,6 +107,12 @@ class DecisionInput:
                 "sequence_successes (signature-matching failures) cannot exceed "
                 f"sequence_failures_any (any-signature failures), got "
                 f"sequence_successes={self.sequence_successes!r}, "
+                f"sequence_failures_any={self.sequence_failures_any!r}"
+            )
+        if not (0 <= self.infrastructure_failures <= self.sequence_failures_any):
+            raise ValueError(
+                "infrastructure_failures (a subset of the any-signature failures) cannot "
+                f"exceed sequence_failures_any, got infrastructure_failures={self.infrastructure_failures!r}, "
                 f"sequence_failures_any={self.sequence_failures_any!r}"
             )
         if not (0.0 < self.confidence < 1.0):
@@ -145,6 +169,14 @@ def decide(d: DecisionInput) -> Decision:
                 OUTCOME_UNRESOLVED,
                 REASON_NOT_REPRODUCED,
                 f"Sequence never reproduced any failure in {d.sequence_n} runs.",
+            )
+        if d.sequence_failures_any == d.infrastructure_failures:
+            return result(
+                OUTCOME_UNRESOLVED,
+                REASON_INFRASTRUCTURE_FAILURE,
+                f"Sequence failed {d.sequence_failures_any}/{d.sequence_n} times, but every "
+                "failure was a crash or timeout, never a real exception -- a tooling problem, "
+                "not evidence of a different bug.",
             )
         return result(
             OUTCOME_UNRESOLVED,

@@ -1022,3 +1022,177 @@ already tracked as ADR-008.
   `failure_signature`, optional `order_exploration`, new `INFRASTRUCTURE_FAILURE` reason, new
   fixture cases F4/N3) is real, substantial new work, not done in this entry — tracked
   separately, pending the member's decision on scope and timing.
+
+## 2026-10-10 — ADR-008: NOT_REPRODUCED handling, schema change, fixtures F4/N3
+
+**Requirement:** the member approved going ahead with ADR-008 (Member 2's proposal for
+failures that do not reproduce). Member 3's side (step 3 of the ADR's own order-of-work
+table): the schema change, `decide()` row, `assemble_report` wiring, and two new
+pre-registered fixture cases.
+
+**Fixtures F4 and N3, written before any run** (`fixtures/od-fixture/ground_truth.json`):
+- **F4** (`AlwaysEarlyVictimTest`/`ZzzLatePolluterTest`, new `LateFlag` static field): class
+  names chosen so the polluter sorts alphabetically after the victim, exploiting this
+  project's confirmed alphabetical discovery order (`docs/evidence-m2.md`'s W7 Task 3) so the
+  natural order can never reproduce the bug — exactly the shape ADR-008's order-shuffling step
+  is for.
+- **N3** (`EnvDependentNegativeTest`): models a failure whose real cause is an environment
+  variable FlakeTrace never sets. Deliberately does **not** check the literal `CI` variable
+  name — GitHub Actions sets `CI=true` on every real runner, so that would make this negative
+  control fail on our own CI job. Uses a fictitious name (`FLAKETRACE_N3_NEVER_SET`) instead.
+- Real verification before writing a single line of Python: compiled
+  (`mvn -B -q -f fixtures/od-fixture/pom.xml test-compile`), confirmed the real discovered
+  order places `AlwaysEarlyVictimTest` first and `ZzzLatePolluterTest` last of 16 methods
+  (`runner.discovery.discover_order`), ran the full module (`mvn -B test`, no new failures:
+  still exactly F1/F2/N1/F3's four, F4/N3 both pass), ran the real one-fresh-JVM order
+  `[ZzzLatePolluterTest#setLateFlag, AlwaysEarlyVictimTest#expectsLateFlagUnset]` via
+  `runner.order_runner.OrderRunner.run_ordered` (polluter passes, victim FAILS with
+  `java.lang.AssertionError` — exactly the predicted mechanism), and ran the real victim alone
+  (passes). Also ran real `diagnose()` on both F4 and N3 in the natural order: both give
+  `NOT_REPRODUCED`, `alone_n=0` — confirming the exact gap ADR-008 names, not a bug in the
+  fixture. **Independent cross-check**: Member 1's own `GroundTruthTest`
+  (`evidence.tests.test_extract`, untouched by me) also passed with these two new cases added
+  to `ground_truth.json` — it found the real `LateFlag#isSet` edge for F4's pair and no edge
+  for any N3 pair, matching my ground truth exactly, from a completely independent test.
+- Added F4/N3 to `eval/benchmark/manifest.json` (both `not_yet_run`, no log files) — required
+  by `test_real_manifest_matches_fixture_ground_truth`, which checks the two files' case IDs
+  match exactly.
+
+**Schema** (`eval/schema/report.schema.json`): `failure_signature` nullable via the same
+`oneOf`/null pattern already used (and already fixed once this session) for `shared_resource`;
+new optional `order_exploration` object; `INFRASTRUCTURE_FAILURE` added to the
+`unresolved_reason` enum. **Found and fixed a real gap beyond what the ADR literally asked
+for**, by reading `runner/diagnose.py`'s actual code rather than assuming: ADR-008's text says
+nullable `failure_signature` "only for NOT_REPRODUCED," but `run_steps` sets
+`reference_signature=None` for its *entire* `NOT_REPRODUCED` status, which `INFRASTRUCTURE_FAILURE`
+is decided from too (same status, same `None` reference) — so a schema tied strictly to the
+`NOT_REPRODUCED` string would reject a real future `INFRASTRUCTURE_FAILURE` report. Widened the
+conditional to cover both reasons before this became a real bug.
+
+**`eval/outcome.py`**: `REASON_INFRASTRUCTURE_FAILURE`; new `DecisionInput.infrastructure_failures`
+field (default 0 — a caller that never reports it gets exactly the pre-ADR-008
+`SIGNATURE_MISMATCH` behaviour, proven by a dedicated test); new `decide()` row between
+`NOT_REPRODUCED` and `SIGNATURE_MISMATCH`.
+
+**`eval/report.py`**: `assemble_report` now handles `NOT_REPRODUCED` (was `UnhandledStatus`);
+builds `failure_signature: null` whenever `diagnosis.reference_signature is None` (covers both
+`NOT_REPRODUCED` and `INFRASTRUCTURE_FAILURE`); reads `infrastructure_failures` via
+`getattr(diagnosis, ..., 0)` and the new optional `order_exploration` via a `hasattr` check on
+all five needed fields — both forward-compatible with Member 2's `DiagnosisRuns` not having
+them yet, omitted entirely (schema allows it) until that lands.
+
+- Command: `py -m unittest discover -s eval/tests -v`. Result: **80/80 passed** (68 existing +
+  12 new, across `test_schema_validator.py`, `test_outcome.py`, `test_report.py`,
+  `test_yield_report.py`).
+- Mutation checks, each confirmed failing before restoring: `decide()`'s new row condition
+  forced to `False` → `test_row3b_infrastructure_failure` failed exactly as expected;
+  `assemble_report`'s `failure_signature = None if ref is None` forced to always build a dict
+  → `test_not_reproduced_with_isolation_data_gives_unresolved` failed with the real
+  `AttributeError` that would occur in production.
+- Real run confirming no regression: `py eval/tools/run_w9_integration.py` — F1/F2 still
+  `VERIFIED`, N1/N2 still `UNRESOLVED(VICTIM_FAILS_ALONE)`, resource edges and locations
+  byte-identical to before (only the execution-record timestamp and N2's own designed
+  randomness differ); `original_failing_order` correctly grew to include the 3 new fixture
+  classes that sort before each victim alphabetically.
+- Real run confirming the exact documented limitation, not a bug: real `diagnose()` on N3 in
+  the natural order gives `NOT_REPRODUCED` with `alone_n=0`; calling `assemble_report` on that
+  real diagnosis raises `ValueError: isolation_n must be > 0` — exactly as designed, pending
+  Member 2's `diagnose()` change (ADR-008 step 4, not yet landed).
+- **Also discovered and fixed, independent of this ADR**: this session's branch had been
+  created from a stale local `main` ref (missing the just-merged ADR-003/004/007 ticks commit
+  and everything after it up to Member 1's ADR-007 agreement). Found it the moment I checked
+  `git log --oneline -1 HEAD` against `origin/main` and saw they disagreed by several commits.
+  Diagnosed the exact scope with `git diff --name-only <stale-base> origin/main` (8 files,
+  only 3 overlapping with this session's own edits), restored the 5 untouched files directly
+  from `origin/main`, and manually re-applied this session's own F4/N3 additions and new
+  entries on top of the other 3 files' correct (non-stale) content — rather than running
+  `git merge`/`git stash`/`git rebase` myself, which this project's rules reserve for the
+  member. Confirmed clean afterward: `git diff origin/main -- <each of the 8 files>` shows
+  zero difference on the 7 untouched files and only this session's genuine new content on
+  the 8th (`ground_truth.json`).
+
+## 2026-10-10 — Fix a real merge-order risk Member 2 found in PR #45
+
+**Requirement:** Member 2 reviewed PR #45 (ADR-008's M3 side) and flagged a real risk: today,
+`runner.diagnose()` still returns `NOT_REPRODUCED` with `alone_n = 0` (ADR-008 step 4, their
+diagnose() change making it always run the alone check, hasn't landed yet). Calling
+`assemble_report` on that real shape hits `eval.outcome.DecisionInput`'s `isolation_n > 0`
+check, raising a bare `ValueError` the CLI does not catch — crashing with a traceback instead
+of the designed "exit 3, no report yet" behaviour, regardless of which of the two changes
+(theirs or mine) merges first.
+
+- File/function: `eval/report.py` — `assemble_report` now raises `UnhandledStatus` explicitly
+  when `diagnosis.status == NOT_REPRODUCED and diagnosis.alone_n == 0`, before building
+  `DecisionInput` at all. Once Member 2's `diagnose()` change lands (`alone_n > 0` always),
+  this branch is simply never reached and the real report-building path runs unchanged.
+- File/function: `eval/tests/test_report.py` — renamed/updated
+  `test_not_reproduced_with_todays_real_shape_is_unhandled_not_a_crash` to assert
+  `UnhandledStatus` (was `ValueError`).
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 80/80 passed.
+- Mutation check: disabled the new guard (`if False:`) — the test failed with the exact real
+  `ValueError: isolation_n must be > 0, got 0` traceback Member 2 described; restored,
+  confirmed `git diff` clean.
+- Also asked by Member 2: comment agreement on ADR-008's PR (#42) or tick M3's row there.
+  Not done directly — I have no GitHub write access in this environment; drafted a comment for
+  the member to post, and will tick the actual ADR file in a follow-up PR once #42 merges
+  (same pattern as ADR-006/007).
+- **Found independently, not mentioned by Member 2**: PR #45's real CI `runner` job was
+  failing for a different, real reason — three hardcoded counts in `runner/tests/` (M2's
+  folder) were stale because this PR's new F4/N3 fixture classes changed the fixture's real
+  discovered-order size (13 → 16 methods) and F3's search prefix (12 → 14). Flagged to the
+  member, who authorized fixing it directly rather than waiting on Member 2 — see the next
+  entry for the fix itself and the real re-verification.
+
+## 2026-10-11 — Fix the 3 stale hardcoded counts in `runner/tests/`, with the member's go-ahead
+
+**Requirement:** the member authorized fixing the three CI failures named above directly,
+rather than relaying them to Member 2 first. `runner/tests/` is not my folder, so this is
+recorded explicitly, with the real reasoning, rather than a silent edit.
+
+- Re-verified the real discovered order first (`runner.discovery.discover_order` on the
+  compiled fixture, native Windows JDK 24): **16** methods, `AlwaysEarlyVictimTest#...` first,
+  `ZzzLatePolluterTest#...` last — matches the design intent exactly (both chosen to sort at
+  the extremes).
+- File/function: `runner/tests/test_discovery.py` —
+  `test_all_thirteen_fixture_methods_in_alphabetical_class_order` renamed to
+  `test_all_fixture_methods_in_alphabetical_class_order` (the literal "thirteen" is no longer
+  true); asserts `len == 16`, first two = `[AlwaysEarlyVictimTest#expectsLateFlagUnset,
+  ConfigPolluterTest#pollute]`, last = `ZzzLatePolluterTest#setLateFlag`.
+- File/function: `runner/tests/test_diagnose.py` — ran the real test first to get the exact
+  number rather than computing it by hand:
+  `py -m unittest runner.tests.test_diagnose.TestDiagnoseOnFixture.test_f3_two_polluters_are_found_by_minimisation`
+  → real failure, `AssertionError: 14 != 12`, confirming the exact new value. Updated
+  `search_runs` assertion from 12 to 14, with a comment naming the real cause (two of the new
+  classes sort before F3's victim, growing its search prefix).
+- File/function: `runner/tests/test_cli.py` — same real cause; updated the summary-line
+  substring assertion from `"12 earlier tests"` to `"14 earlier tests"`.
+- Command: `py -m unittest discover -s runner/tests -v` (real JVM runs, native Windows JDK 24).
+  Result: **108/108 passed** (was 105/108 before this fix, confirmed by reproducing the 3
+  failures first).
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 80/80 passed (unaffected, as
+  expected — pure Python logic, no JVM).
+- Limitation: none found beyond the three fixed. CI on JDK 8/Linux not yet re-confirmed from
+  this exact commit (runs on the PR).
+
+## 2026-10-11 — Merge conflict: adopted Member 2's independent, more durable fix over my own
+
+**Requirement:** Member 2 found and fixed the same three stale `runner/tests/` counts
+independently (PR #47, merged to `main` before I'd pushed my own fix). Merging `main` into
+this branch conflicted on exactly the three files I'd also touched.
+
+- Read both sides before resolving anything. Member 2's fix is **not** the same shape as
+  mine — mine hardcoded the new numbers (16, 14); theirs computes the expected answer from
+  the real data every time: `test_discovery.py` now reads every real `@Test` method straight
+  from the fixture's `.java` sources (regex, independent of the discovery code under test) and
+  checks `discover_order`'s result is exactly that set; `test_diagnose.py` and `test_cli.py`
+  now derive the expected count from `len(runs.original_order) - 1` /
+  `len(report["original_failing_order"]) - 1` instead of a literal number.
+- Decision: kept Member 2's version in all three conflicts, discarded my own hardcoded
+  numbers. This isn't deference for its own sake — my fix was correct today but exactly as
+  fragile as the thing that caused this whole problem (a hardcoded count that breaks the next
+  time any fixture case is added); theirs eliminates that class of bug permanently.
+- Command: `py -m unittest discover -s runner/tests -v` (real JVM). Result: **108/108
+  passed**. `py -m unittest discover -s eval/tests -v`: 80/80 passed, unaffected.
+- Limitation: none. My own three-number fix (previous entry) is superseded, not wrong — kept
+  in the log as an honest record of what was actually done at the time, not retroactively
+  edited.

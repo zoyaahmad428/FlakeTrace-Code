@@ -23,11 +23,7 @@
   "shared_resource": { "kind": "static-field", "class": "com.example.Shared", "field": "counter" },
   "polluter_write_location": { "class": "com.example.SuspectedPolluterTest", "method": "mutatesSomething", "bytecode_offset": 2 },
   "victim_read_location": { "class": "com.example.OrderInsensitiveTest", "method": "checksSomething", "bytecode_offset": 4 },
-  "failure_signature": {
-    "exception_type": "java.lang.AssertionError",
-    "message": "expected the originally-observed failure to recur",
-    "stack_trace": "at com.example.OrderInsensitiveTest.checksSomething(OrderInsensitiveTest.java:9)"
-  },
+  "failure_signature": null,
   "instrumentation_level": "static-only",
   "execution_record_reference": "illustrative-only: no real execution record backs this example",
   "source_integrity": { "passed": true, "details": "Illustrative: no modification detected to any instrumented class." },
@@ -35,6 +31,7 @@
   "unresolved_reason": "NOT_REPRODUCED",
   "limitations": [
     "Hand-written illustrative example, not a recorded benchmark run -- see eval/examples/README.md.",
-    "Demonstrates that a plausible resource edge is not enough on its own: the sequence must actually reproduce the failure, and here it never did in 20 attempts."
+    "Demonstrates that a plausible resource edge is not enough on its own: the sequence must actually reproduce the failure, and here it never did in 20 attempts.",
+    "failure_signature is null (ADR-008, 2026-10-10): a failure that never reproduced has no real signature to report -- an earlier version of this file invented one, which the schema now rejects."
   ]
 }

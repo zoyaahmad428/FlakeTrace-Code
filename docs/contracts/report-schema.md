@@ -28,7 +28,8 @@ document itself.
 | `shared_resource` | `{kind, class, field}` or `{kind, key}` or `null` | Member 1 (Resource Evidence) | The static field or system property both the polluter and the victim touch. `null` if no resource edge was found. |
 | `polluter_write_location` | `{class, method, bytecode_offset}` or `null` | Member 1 | Where the polluter writes the shared resource. `null` if no resource edge was found. Iteration 1 limitation: this field is singular, so a multi-polluter case (e.g. the fixture's F3, where two separate tests must each write before the victim fails) can only show one write location — see `eval/examples/README.md`. |
 | `victim_read_location` | `{class, method, bytecode_offset}` or `null` | Member 1 | Where the victim reads the shared resource. `null` if no resource edge was found. |
-| `failure_signature` | `{exception_type, message, stack_trace}` | Member 2 | The reference failure signature that `reproduction`/`victim_alone` are measured against. |
+| `failure_signature` | `{exception_type, message, stack_trace}` or `null` | Member 2 | The reference failure signature that `reproduction`/`victim_alone` are measured against. `null` only when `unresolved_reason` is `NOT_REPRODUCED` or `INFRASTRUCTURE_FAILURE` (ADR-008, 2026-10-10) — a failure that never produced a real reference exception has none to report. |
+| `order_exploration` | `{order_given, shuffled_orders_tried, orders_exhausted, seed_base, reproducing_seed}`, optional | Member 2 | ADR-008: how many orders beyond the given/discovered one were tried, and which (if any) reproduced. Omitted entirely until Member 2's `diagnose()` tracks it (not yet landed) — every existing report without it stays valid. |
 | `instrumentation_level` | `"static-only"` (fixed) | Member 1 / Member 3 (contract constant) | Always `"static-only"` in Iteration 1. Runtime instrumentation is Iteration 2 and is not built yet. |
 | `execution_record_reference` | string | Member 2 | Pointer to Member 2's recorded execution log / run id backing this report, for traceability. |
 | `source_integrity` | `{passed, details}` | Member 2 (source-integrity check) | Whether Member 2's check confirmed the instrumented bytecode matches the analyzed source. If `passed` is `false`, the outcome is always `UNRESOLVED(SOURCE_INTEGRITY_FAILED)` regardless of every other field — see decision table. |
@@ -52,7 +53,8 @@ non-null) is always required alongside the statistics.
 | --- | --- |
 | `VICTIM_FAILS_ALONE` | The victim reproduced its reference signature at least once when run alone. |
 | `NOT_REPRODUCED` | The reduced sequence never failed at all. |
-| `SIGNATURE_MISMATCH` | The reduced sequence failed sometimes, but never with the reference signature. |
+| `INFRASTRUCTURE_FAILURE` | ADR-008 (2026-10-10). The reduced sequence failed sometimes, but every failure was a crash or timeout, never a real exception — a tooling problem, not evidence of a different bug. Distinct from `SIGNATURE_MISMATCH`, which means at least one failure was real but unmatched. |
+| `SIGNATURE_MISMATCH` | The reduced sequence failed sometimes, but never with the reference signature (and at least one such failure was a real, different exception, not only crashes/timeouts). |
 | `NO_SUPPORTED_RESOURCE_EVIDENCE` | The sequence reproduces the failure, but no polluter-write/victim-read resource edge was found. |
 | `BELOW_CONFIDENCE_THRESHOLD` | Reserved in the schema per the brief's "at least" requirement. **Not currently emitted** — see below. |
 | `SOURCE_INTEGRITY_FAILED` | Added in Phase 3 (not in the brief's original list). The source-integrity check failed, so no other evidence can be trusted. |
@@ -66,7 +68,9 @@ top to bottom, first match wins. Confirmed with Member 3 on 2026-10-08:
 2. `victim_alone.successes >= 1` → `UNRESOLVED(VICTIM_FAILS_ALONE)`
 3. `reproduction.successes == 0`:
    - and `sequence_any_signature_failures == 0` → `UNRESOLVED(NOT_REPRODUCED)`
-   - and `sequence_any_signature_failures > 0` → `UNRESOLVED(SIGNATURE_MISMATCH)`
+   - and every failure was a crash/timeout (ADR-008's `infrastructure_failures ==
+     sequence_any_signature_failures > 0`) → `UNRESOLVED(INFRASTRUCTURE_FAILURE)`
+   - and at least one failure was a real, different exception → `UNRESOLVED(SIGNATURE_MISMATCH)`
 4. `reproduction.successes >= 1`:
    - no resource edge → `UNRESOLVED(NO_SUPPORTED_RESOURCE_EVIDENCE)`
    - resource edge exists, Wilson lower bound ≥ 0.70 → `VERIFIED`

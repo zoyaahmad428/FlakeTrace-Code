@@ -6,12 +6,20 @@
   "polluters": [],
   "original_failing_order": [
     {
+      "class": "odfixture.AlwaysEarlyVictimTest",
+      "method": "expectsLateFlagUnset"
+    },
+    {
       "class": "odfixture.ConfigPolluterTest",
       "method": "pollute"
     },
     {
       "class": "odfixture.ConfigVictimTest",
       "method": "expectsDefaultMode"
+    },
+    {
+      "class": "odfixture.EnvDependentNegativeTest",
+      "method": "onlyFailsUnderCI"
     },
     {
       "class": "odfixture.FeaturePolluterTest",
@@ -64,10 +72,10 @@
     "stack_trace": "org.junit.Assert.fail:89\norg.junit.Assert.failNotEquals:835\norg.junit.Assert.assertEquals:647\norg.junit.Assert.assertEquals:633\nodfixture.NegativeAloneFailTest.alwaysFails:10"
   },
   "instrumentation_level": "static-only",
-  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T105755Z-odfixture.NegativeAloneFailTest#alwaysFails.jsonl",
+  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T162311Z-odfixture.NegativeAloneFailTest#alwaysFails.jsonl",
   "source_integrity": {
     "passed": true,
-    "details": "19 files hashed (SHA-256) before and after; all identical"
+    "details": "23 files hashed (SHA-256) before and after; all identical"
   },
   "outcome": "UNRESOLVED",
   "unresolved_reason": "VICTIM_FAILS_ALONE",

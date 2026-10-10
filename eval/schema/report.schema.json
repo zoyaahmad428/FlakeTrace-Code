@@ -62,6 +62,35 @@
           ]
         }
       ]
+    },
+    "failureSignature": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "exception_type": { "type": "string", "minLength": 1 },
+            "message": { "type": ["string", "null"] },
+            "stack_trace": { "type": "string" }
+          },
+          "required": ["exception_type", "stack_trace"],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Null only when unresolved_reason is NOT_REPRODUCED or INFRASTRUCTURE_FAILURE (ADR-008): both come from a diagnosis that never observed a real reference failure (runner.diagnose always sets reference_signature=None for its NOT_REPRODUCED status, which INFRASTRUCTURE_FAILURE is decided from too), so there is no real signature to report, and inventing one would misrepresent it."
+    },
+    "orderExploration": {
+      "type": "object",
+      "properties": {
+        "order_given": { "type": "boolean" },
+        "shuffled_orders_tried": { "type": "integer", "minimum": 0 },
+        "orders_exhausted": { "type": "boolean" },
+        "seed_base": { "type": "integer" },
+        "reproducing_seed": { "type": ["integer", "null"] }
+      },
+      "required": ["order_given", "shuffled_orders_tried", "orders_exhausted", "seed_base", "reproducing_seed"],
+      "additionalProperties": false,
+      "description": "ADR-008: how many orders were tried beyond the given/discovered one, and which (if any) reproduced. Optional on the report -- omitted entirely until the producing field exists (Member 2's diagnose(), ADR-008 step 4)."
     }
   },
   "properties": {
@@ -91,16 +120,8 @@
     "shared_resource": { "$ref": "#/$defs/sharedResource" },
     "polluter_write_location": { "$ref": "#/$defs/codeLocation" },
     "victim_read_location": { "$ref": "#/$defs/codeLocation" },
-    "failure_signature": {
-      "type": "object",
-      "properties": {
-        "exception_type": { "type": "string", "minLength": 1 },
-        "message": { "type": ["string", "null"] },
-        "stack_trace": { "type": "string" }
-      },
-      "required": ["exception_type", "stack_trace"],
-      "additionalProperties": false
-    },
+    "failure_signature": { "$ref": "#/$defs/failureSignature" },
+    "order_exploration": { "$ref": "#/$defs/orderExploration" },
     "instrumentation_level": {
       "type": "string",
       "enum": ["static-only"],
@@ -130,12 +151,13 @@
         "VICTIM_FAILS_ALONE",
         "NOT_REPRODUCED",
         "SIGNATURE_MISMATCH",
+        "INFRASTRUCTURE_FAILURE",
         "NO_SUPPORTED_RESOURCE_EVIDENCE",
         "BELOW_CONFIDENCE_THRESHOLD",
         "SOURCE_INTEGRITY_FAILED",
         null
       ],
-      "description": "Required (non-null) when outcome is UNRESOLVED, must be null otherwise. BELOW_CONFIDENCE_THRESHOLD is reserved for forward compatibility; the Iteration 1 decision function (eval/outcome.py) uses CANDIDATE for that case instead, per team decision 2026-10-08."
+      "description": "Required (non-null) when outcome is UNRESOLVED, must be null otherwise. BELOW_CONFIDENCE_THRESHOLD is reserved for forward compatibility; the Iteration 1 decision function (eval/outcome.py) uses CANDIDATE for that case instead, per team decision 2026-10-08. INFRASTRUCTURE_FAILURE (ADR-008, 2026-10-10): the sequence never failed for a real reason, only crashed or timed out -- distinct from SIGNATURE_MISMATCH, which means a real but different failure."
     },
     "limitations": {
       "type": "array",
@@ -158,6 +180,14 @@
     {
       "if": { "not": { "properties": { "outcome": { "const": "UNRESOLVED" } } } },
       "then": { "properties": { "unresolved_reason": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "unresolved_reason": { "enum": ["NOT_REPRODUCED", "INFRASTRUCTURE_FAILURE"] } } },
+      "then": { "properties": { "failure_signature": { "type": "null" } } }
+    },
+    {
+      "if": { "not": { "properties": { "unresolved_reason": { "enum": ["NOT_REPRODUCED", "INFRASTRUCTURE_FAILURE"] } } } },
+      "then": { "properties": { "failure_signature": { "type": "object" } } }
     }
   ]
 }

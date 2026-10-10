@@ -11,12 +11,20 @@
   ],
   "original_failing_order": [
     {
+      "class": "odfixture.AlwaysEarlyVictimTest",
+      "method": "expectsLateFlagUnset"
+    },
+    {
       "class": "odfixture.ConfigPolluterTest",
       "method": "pollute"
     },
     {
       "class": "odfixture.ConfigVictimTest",
       "method": "expectsDefaultMode"
+    },
+    {
+      "class": "odfixture.EnvDependentNegativeTest",
+      "method": "onlyFailsUnderCI"
     },
     {
       "class": "odfixture.FeaturePolluterTest",
@@ -72,10 +80,10 @@
     "stack_trace": "org.junit.Assert.fail:87\norg.junit.Assert.assertTrue:42\norg.junit.Assert.assertFalse:65\norg.junit.Assert.assertFalse:75\nodfixture.FeatureVictimTest.expectsTurboDisabled:10"
   },
   "instrumentation_level": "static-only",
-  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T105728Z-odfixture.FeatureVictimTest#expectsTurboDisabled.jsonl",
+  "execution_record_reference": "C:\\Users\\zarpa\\OneDrive\\Documents\\GitHub\\FlakeTracee\\eval\\reports\\flaketrace-records\\20261010T162248Z-odfixture.FeatureVictimTest#expectsTurboDisabled.jsonl",
   "source_integrity": {
     "passed": true,
-    "details": "19 files hashed (SHA-256) before and after; all identical"
+    "details": "23 files hashed (SHA-256) before and after; all identical"
   },
   "outcome": "VERIFIED",
   "unresolved_reason": null,

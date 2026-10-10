@@ -165,4 +165,4 @@ after thousands of reruns."* (0/20 → upper bound 0.161; 0/31 → 0.110, measur
 | --- | --- | --- |
 | M1 | ☐ | for information: no change to `evidence/` |
 | M2 | ☑ | Chose a given order + 31 valid shuffles + the honest report, one diagnosis flow, on 2026-10-10 |
-| M3 | ☐ | schema change (`failure_signature` null for NOT_REPRODUCED, `order_exploration`, `INFRASTRUCTURE_FAILURE`), `assemble_report`, `decide()` row, fixtures F4 and N3 |
+| M3 | ☑ | Agree 2026-10-10 — implemented in PR #45: `failure_signature` null for `NOT_REPRODUCED`/`INFRASTRUCTURE_FAILURE` (widened beyond this ADR's literal text, see `docs/evidence-m3.md`), `order_exploration` optional, new `decide()` row, fixtures F4 and N3 with pre-registered ground truth |

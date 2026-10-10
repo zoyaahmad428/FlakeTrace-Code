@@ -80,12 +80,66 @@ class TestValidateReport(unittest.TestCase):
     def test_unresolved_with_reason_passes(self):
         ok = copy.deepcopy(VALID_REPORT)
         ok["outcome"] = "UNRESOLVED"
-        ok["unresolved_reason"] = "NOT_REPRODUCED"
+        ok["unresolved_reason"] = "VICTIM_FAILS_ALONE"
         validate_report(ok)  # must not raise
 
     def test_additional_property_rejected(self):
         bad = copy.deepcopy(VALID_REPORT)
         bad["totally_made_up_field"] = 1
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            validate_report(bad)
+
+    def test_not_reproduced_requires_null_failure_signature(self):
+        """ADR-008: a failure that never reproduced has no signature to report."""
+        bad = copy.deepcopy(VALID_REPORT)
+        bad["outcome"] = "UNRESOLVED"
+        bad["unresolved_reason"] = "NOT_REPRODUCED"
+        # failure_signature still the real object inherited from VALID_REPORT -- must fail.
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            validate_report(bad)
+
+    def test_not_reproduced_with_null_failure_signature_passes(self):
+        ok = copy.deepcopy(VALID_REPORT)
+        ok["outcome"] = "UNRESOLVED"
+        ok["unresolved_reason"] = "NOT_REPRODUCED"
+        ok["failure_signature"] = None
+        validate_report(ok)  # must not raise
+
+    def test_null_failure_signature_requires_not_reproduced(self):
+        """The inverse: a real reason (e.g. VICTIM_FAILS_ALONE) must still carry a real signature."""
+        bad = copy.deepcopy(VALID_REPORT)
+        bad["outcome"] = "UNRESOLVED"
+        bad["unresolved_reason"] = "VICTIM_FAILS_ALONE"
+        bad["failure_signature"] = None
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            validate_report(bad)
+
+    def test_infrastructure_failure_requires_null_failure_signature(self):
+        """runner.diagnose always sets reference_signature=None for the NOT_REPRODUCED
+        status that INFRASTRUCTURE_FAILURE is decided from -- so, like NOT_REPRODUCED,
+        it never has a real signature to report."""
+        bad = copy.deepcopy(VALID_REPORT)
+        bad["outcome"] = "UNRESOLVED"
+        bad["unresolved_reason"] = "INFRASTRUCTURE_FAILURE"
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            validate_report(bad)
+
+        ok = copy.deepcopy(VALID_REPORT)
+        ok["outcome"] = "UNRESOLVED"
+        ok["unresolved_reason"] = "INFRASTRUCTURE_FAILURE"
+        ok["failure_signature"] = None
+        validate_report(ok)  # must not raise
+
+    def test_order_exploration_is_optional_but_validated_when_present(self):
+        ok = copy.deepcopy(VALID_REPORT)
+        ok["order_exploration"] = {
+            "order_given": True, "shuffled_orders_tried": 5,
+            "orders_exhausted": False, "seed_base": 0, "reproducing_seed": 3,
+        }
+        validate_report(ok)  # must not raise
+
+        bad = copy.deepcopy(VALID_REPORT)
+        bad["order_exploration"] = {"order_given": True}  # missing required sub-fields
         with self.assertRaises(jsonschema.exceptions.ValidationError):
             validate_report(bad)
 

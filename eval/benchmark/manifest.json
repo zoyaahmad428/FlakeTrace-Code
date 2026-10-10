@@ -46,6 +46,20 @@
       "ground_truth_ref": "fixtures/od-fixture/ground_truth.json#F3"
     },
     {
+      "case_id": "F4",
+      "source": "fixture",
+      "project": "od-fixture",
+      "project_path": "fixtures/od-fixture",
+      "sha": null,
+      "victim": { "class": "odfixture.AlwaysEarlyVictimTest", "method": "expectsLateFlagUnset" },
+      "polluters": [
+        { "class": "odfixture.ZzzLatePolluterTest", "method": "setLateFlag" }
+      ],
+      "ground_truth_outcome": "VERIFIED",
+      "ground_truth_reason": null,
+      "ground_truth_ref": "fixtures/od-fixture/ground_truth.json#F4"
+    },
+    {
       "case_id": "N1",
       "source": "fixture",
       "project": "od-fixture",
@@ -68,6 +82,18 @@
       "ground_truth_outcome": "UNRESOLVED",
       "ground_truth_reason": "VICTIM_FAILS_ALONE",
       "ground_truth_ref": "fixtures/od-fixture/ground_truth.json#N2"
+    },
+    {
+      "case_id": "N3",
+      "source": "fixture",
+      "project": "od-fixture",
+      "project_path": "fixtures/od-fixture",
+      "sha": null,
+      "victim": { "class": "odfixture.EnvDependentNegativeTest", "method": "onlyFailsUnderCI" },
+      "polluters": [],
+      "ground_truth_outcome": "UNRESOLVED",
+      "ground_truth_reason": "NOT_REPRODUCED",
+      "ground_truth_ref": "fixtures/od-fixture/ground_truth.json#N3"
     },
     {
       "case_id": "POC-DEMO-1",

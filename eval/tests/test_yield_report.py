@@ -139,15 +139,15 @@ class TestRealManifest(unittest.TestCase):
 
     def test_real_logs_exist_only_for_the_5_manually_run_fixture_cases(self):
         """F1-F3/N1/N2 were actually run via plain Maven (eval/tools/run_real_reps.sh,
-        2026-10-09) and have real logs. POC-DEMO-1 and the 5 idoft cases have
+        2026-10-09) and have real logs. F4, N3, POC-DEMO-1 and the 5 idoft cases have
         never been run by any pipeline and must have no log file."""
         json_logs = {p.stem for p in Path(LOGS_DIR).glob("*.json")}
         self.assertEqual(json_logs, {"F1", "F2", "F3", "N1", "N2"})
 
     def test_yield_report_shows_real_funnel_for_run_cases_and_not_yet_run_for_the_rest(self):
         report = generate_yield_report()
-        self.assertEqual(report["total_cases"], 11)
-        self.assertEqual(report["not_yet_run"], 6)  # POC-DEMO-1 + 5 idoft
+        self.assertEqual(report["total_cases"], 13)
+        self.assertEqual(report["not_yet_run"], 8)  # F4, N3 (ADR-008), POC-DEMO-1 + 5 idoft
         self.assertEqual(report["built"], 5)        # F1,F2,F3,N1,N2 all compiled fine
         self.assertEqual(report["reproduced"], 3)   # F1,F2,F3 verified
         self.assertEqual(report["victim_fails_alone"], 2)  # N1,N2

@@ -196,7 +196,14 @@ class TestAssembleReport(unittest.TestCase):
         self.assertIsNone(report["shared_resource"])
         self.assertEqual(report["unresolved_reason"], "VICTIM_FAILS_ALONE")
 
-    def test_not_reproduced_is_unhandled(self):
+    def test_not_reproduced_with_todays_real_shape_is_unhandled_not_a_crash(self):
+        """Today, runner.diagnose() short-circuits before running the isolation check when
+        nothing reproduces at all, so a REAL NOT_REPRODUCED diagnosis has alone_n=0.
+        eval.outcome.DecisionInput would reject that outright (isolation_n must be > 0) as a
+        bare ValueError, which the CLI does not catch -- so assemble_report raises
+        UnhandledStatus for this specific case instead, keeping the CLI's "exit 3, no report
+        yet" behaviour safe regardless of which of this module's or Member 2's diagnose()
+        change merges first (flagged by Member 2, see docs/evidence-m3.md)."""
         diagnosis = _diagnosis(
             NOT_REPRODUCED, polluters=[], sequence=[POLLUTER, VICTIM], reference_signature=None,
             sequence_n=5, sequence_successes=0, sequence_any_failures=0,
@@ -204,6 +211,52 @@ class TestAssembleReport(unittest.TestCase):
         )
         with self.assertRaises(UnhandledStatus):
             assemble_report(diagnosis)
+
+    def test_not_reproduced_with_isolation_data_gives_unresolved(self):
+        """ADR-008's intended shape, once Member 2's diagnose() always runs the alone check:
+        alone_n > 0 even though nothing ever reproduced. Hand-built ahead of that real
+        dependency landing, per this project's established testing convention."""
+        diagnosis = _diagnosis(
+            NOT_REPRODUCED, polluters=[], sequence=[POLLUTER, VICTIM], reference_signature=None,
+            sequence_n=20, sequence_successes=0, sequence_any_failures=0,
+            alone_n=20, alone_successes=0,
+        )
+        report = assemble_report(diagnosis)
+        self.assertEqual(report["outcome"], "UNRESOLVED")
+        self.assertEqual(report["unresolved_reason"], "NOT_REPRODUCED")
+        self.assertIsNone(report["failure_signature"])
+        self.assertIsNone(report["shared_resource"])
+        self.assertEqual(report["polluters"], [])
+        self.assertTrue(any("Not reproduced:" in line for line in report["limitations"]))
+        validate_report(report)
+
+    def test_infrastructure_failure_gives_unresolved_with_null_signature(self):
+        """Hand-built DiagnosisRuns with infrastructure_failures set, simulating Member 2's
+        diagnose() once it tracks crash/timeout-only sequences separately (ADR-008). Not yet
+        real: DiagnosisRuns has no such field today, so assemble_report's getattr(...,
+        default 0) is exercised instead via a plain object standing in for it."""
+        class _WithInfraFailures:
+            """Minimal stand-in: real attribute access, not a dict -- not a fake of
+            DiagnosisRuns, just adding the one field it doesn't have yet."""
+            def __init__(self, base, infrastructure_failures):
+                self._base = base
+                self.infrastructure_failures = infrastructure_failures
+
+            def __getattr__(self, name):
+                return getattr(self._base, name)
+
+        base = _diagnosis(
+            NOT_REPRODUCED, polluters=[], sequence=[POLLUTER, VICTIM], reference_signature=None,
+            sequence_n=20, sequence_successes=0, sequence_any_failures=5,
+            alone_n=20, alone_successes=0,
+        )
+        diagnosis = _WithInfraFailures(base, infrastructure_failures=5)
+        report = assemble_report(diagnosis)
+        self.assertEqual(report["outcome"], "UNRESOLVED")
+        self.assertEqual(report["unresolved_reason"], "INFRASTRUCTURE_FAILURE")
+        self.assertIsNone(report["failure_signature"])
+        self.assertTrue(any("crashed or timed out" in line for line in report["limitations"]))
+        validate_report(report)
 
     def test_no_single_polluter_is_unhandled(self):
         diagnosis = _diagnosis(NO_SINGLE_POLLUTER, polluters=[], sequence=[POLLUTER, VICTIM])
