@@ -136,6 +136,6 @@ M3's `assemble_report` uses (PR #38) to leave out its generic "no edge" line.
 
 | Member | Agree? | Comment |
 | --- | --- | --- |
-| M1 | ☐ | per-polluter pair mode; the combining rule for several polluters |
+| M1 | ☑ | Agreed 2026-10-10: `analyse_pair` once per polluter and the combining rule for several polluters (first edge shown, others named with their depth; any polluter without an edge → no resource fields). Checked on F3 with the real command: `VERIFIED`, `flagA` shown, `flagB` named ([[evidence-m1]]). Note: this section's first line still says `analyse_test` + `find_edges` at depth 2; the code uses `analyse_pair`. M1 will propose the multi-polluter rule for the contract's Projection table |
 | M2 | ☑ | Chose ddmin, reusing `POLLUTER_FOUND`, and the strict evidence rule on 2026-10-10 |
-| M3 | ☐ | `POLLUTER_FOUND` with several polluters into `assemble_report`; one-edge-per-polluter in the schema change |
+| M3 | ☑ | Agree 2026-10-10 — the per-polluter report rule (first polluter's resource shown, others named in `limitations`, `VERIFIED` only if every polluter has an edge) and `POLLUTER_FOUND` with several polluters flowing into `assemble_report` unchanged (`diagnosis.polluters` was already a list) |

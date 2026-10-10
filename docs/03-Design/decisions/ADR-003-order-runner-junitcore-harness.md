@@ -115,4 +115,4 @@ corrupt them.
 | --- | --- | --- |
 | M1 | ☑ | Agree; read and understood the Python runner + JUnitCore harness design |
 | M2 | ☑ | Chose option A on 2026-10-09 |
-| M3 | ☐ | |
+| M3 | ☑ | Agree 2026-10-10 — read and understood the JUnitCore harness design; `eval/`'s report assembly consumes the `DiagnosisRuns` this harness ultimately produces without needing its internals |

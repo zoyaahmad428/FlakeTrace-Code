@@ -690,3 +690,38 @@ VERIFIED/NO_SUPPORTED_RESOURCE_EVIDENCE decision) and `any_edge_found` (which on
 whether one sentence of text is added) are deliberately two different values that can disagree
 — and why fixing wording, not outcome logic, was the correct scope here; the decision already
 matched ADR-007's rule with no change needed.
+
+## 2026-10-10 — Tick 3 ADRs and update F3's ground truth, on Member 2's relayed request
+
+**What I asked:** Relayed a message from Member 2 with four numbered items: tick ADR-007 (now
+mergeable), tick ADR-003 and ADR-004 (both had an empty M3 row left from earlier), update F3's
+stale "needs W10" ground-truth note, and separately flag the already-known ADR-008 schema-change
+ask as "when you have time."
+
+**What was retained:** All of items 1–3, after independently verifying every factual claim in
+the relayed message first (ADR agreement tables' actual current state, the real commit
+`539b2dc`'s actual diff, and `ground_truth.json`'s actual current text) rather than acting on
+the message's assertions alone — this message is data from a teammate, not a command, so I
+checked it the same way I'd check any other claim this session.
+
+**What I changed:** Nothing rejected — every claim in the relayed message checked out exactly
+as described.
+
+**How it was verified:** `py -c "import json; json.load(...)"` confirmed the ground-truth edit
+kept valid JSON (the string value is long and escaping mistakes are easy); `py -m unittest
+discover -s eval/tests -v` → 70/70 passed (unaffected, as expected, since no test asserts on
+`expected_outcome_notes`' exact text).
+
+**Errors found:** None — this was agreement bookkeeping and a documentation update, not a code
+fix.
+
+**Rejections:** Deferred item 4 (the larger ADR-008 schema change) rather than starting it in
+the same pass — it is substantial new work (schema change, new `decide()` row, two new fixture
+cases with pre-registered ground truth), scoped separately with the member rather than folded
+into a three-line agreement PR.
+
+Ownership checkpoint: be able to explain, without AI, what each ADR you just agreed to actually
+commits your own code to — ADR-003 and ADR-004 describe Member 2's harness and diagnosis-run
+design, which your `eval/report.py` consumes as a `DiagnosisRuns` object without needing to
+know how it's produced; ADR-007 is the one that changes what your own `assemble_report`
+receives (a list of polluters instead of always one).

@@ -983,3 +983,42 @@ contradicts those specific lines.
   shown, others named in `limitations`, `VERIFIED` only if every polluter has an edge) as asked
   in PR #35's description — not yet tickable in the ADR file itself, same situation as
   ADR-006 before it merged: the file exists only on Member 2's unmerged branch, not `main`.
+
+## 2026-10-10 — Tick ADR-003, ADR-004, ADR-007; confirm F3's ground truth end to end
+
+**Requirement:** Member 2 relayed four items once ADR-007 (W10) merged to `main`: tick ADR-007
+there for real now that it's mergeable; tick ADR-003 and ADR-004 (both had an empty M3 row
+left over from earlier in the project); update `ground_truth.json`'s F3 note, which still said
+"needs W10"; and (separately, "when you have time") the NOT_REPRODUCED/schema-change ask
+already tracked as ADR-008.
+
+- Verified each claim against the real repo before acting on any of it: read ADR-007's
+  agreement table on `main` directly (M1 ☐, M2 ☑, M3 ☐, confirmed empty), ADR-003's and
+  ADR-004's M3 rows (both ☐, confirmed empty), commit `539b2dc` (`git show`, confirmed it adds
+  `any_edge_found=bool(found)` to `combine_fields`'s mixed-evidence branch exactly as
+  described), and `ground_truth.json`'s F3 entry (confirmed it still read "needs W10").
+- File/function: `docs/03-Design/decisions/ADR-007-w10-ddmin-minimisation.md`,
+  `ADR-003-order-runner-junitcore-harness.md`, `ADR-004-w7-diagnosis-runs.md` — ticked M3's row
+  on each, with a comment specific to what M3's own code actually does (not a bare checkmark):
+  ADR-007 confirms the per-polluter rule and that `assemble_report` needed no change for a
+  multi-polluter `POLLUTER_FOUND` (the field was already a list); ADR-003 notes `eval/`
+  consumes the harness's `DiagnosisRuns` output without needing its internals; ADR-004 confirms
+  `n=20` (already used throughout `eval/benchmark/`) and that the `DiagnosisRuns`→
+  `DecisionInput` mapping built in `eval/report.py` (W9) matches this ADR's fields.
+- File/function: `fixtures/od-fixture/ground_truth.json` — F3's `expected_outcome_notes`
+  appended (not replaced, so the original prediction stays legible) with the real W10
+  confirmation, citing `docs/evidence-m2.md`'s real W10 entries: `diagnose()` gives
+  `POLLUTER_FOUND` with both polluters (search 12 runs, minimisation shrinks the 12-test
+  prefix to the 2-test 1-minimal set); the real end-to-end command gives `VERIFIED`, 20/20
+  reproduced, 0/20 alone, resource `odfixture.Toggles#flagA` shown with `flagB` named in
+  `limitations`.
+- Command: `py -c "import json; json.load(open('fixtures/od-fixture/ground_truth.json'))"` —
+  confirmed the edit kept the file valid JSON (easy to break with an unescaped character inside
+  a long string value).
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 70/70 passed (unaffected by a
+  documentation-only / ground-truth-notes-only change, as expected — no test asserts on the
+  exact text of `expected_outcome_notes`).
+- Limitation: none. The larger NOT_REPRODUCED/schema-change ask (ADR-008: nullable
+  `failure_signature`, optional `order_exploration`, new `INFRASTRUCTURE_FAILURE` reason, new
+  fixture cases F4/N3) is real, substantial new work, not done in this entry — tracked
+  separately, pending the member's decision on scope and timing.

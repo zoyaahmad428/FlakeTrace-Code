@@ -532,3 +532,21 @@ line when the reported evidence is deeper than depth 2.
     cannot rank causes; this is documented, not changed.
   - FJ-01/FJ-02 are BRITTLE cases, out of scope for Iteration 1 outcomes (contract Q6, Member 3),
     so this changes their evidence, not their outcome.
+
+## ADR-007 check: several polluters on fixture F3 (2026-10-10)
+
+**Requirement:** before agreeing to ADR-007, confirm that the merged W10 code combines this
+component's pair evidence as the ADR says, using `analyse_pair` per polluter.
+
+- Code read on main `2a40f58`: `runner/cli.py` `resource_fields` calls `analyse_pair(classes,
+  polluter, victim)` once per polluter; `combine_fields` applies the three cases of ADR-007.
+- Command (fixture compiled with `mvn -B -q test-compile`, exit 0):
+  `python3 -m runner diagnose --project fixtures/od-fixture --victim odfixture.ToggleVictimTest#expectsNotBothFlagsSet --records <scratch>`
+  → exit 0 in 26 s. Real output: `VERIFIED`; polluters `setFlagA`, `setFlagB`; "12 earlier
+  tests -> 2 polluters in 10 runs"; reproduced 20/20 (lower bound 0.839), alone 0/20.
+- Report: `shared_resource` = `odfixture.Toggles` `flagA` (write `ToggleAPolluterTest#setFlagA@1`,
+  read `ToggleVictimTest#expectsNotBothFlagsSet@0`), and the `limitations` line "Polluter
+  odfixture.ToggleBPolluterTest#setFlagB: shared resource odfixture.Toggles#flagB is not shown in
+  this report".
+- Limitation: the report shows one resource; `flagB` is only named until the schema allows one
+  edge per polluter (ADR-007, long-term shape).

@@ -166,4 +166,4 @@ one alone failure and no polluter (20 runs with no failure has probability ~1e-6
 | --- | --- | --- |
 | M1 | ☑ | Agree with the `priority` hook for evidence-ranked candidates; the ranking rule must be fixed before any ground truth is used |
 | M2 | ☑ | Chose these options on 2026-10-09 |
-| M3 | ☐ | default `n = 20` (I3); `DiagnosisRuns` → `DecisionInput` mapping in W9 |
+| M3 | ☑ | Agree 2026-10-10 — default `n = 20` (I3, already used throughout `eval/benchmark/` and the real W9 reports); the `DiagnosisRuns` → `DecisionInput` mapping built in `eval/report.py` (W9) matches this ADR's fields exactly |
