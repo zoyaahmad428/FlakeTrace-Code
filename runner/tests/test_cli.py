@@ -220,6 +220,16 @@ class TestOrderFile(unittest.TestCase):
             with self.assertRaises(OrderFileError, msg=text):
                 read_order(self.write(text), V)
 
+    def test_utf16_order_file_from_powershell_is_read(self):
+        path = self.write("pkg.PolluterTest#p\r\npkg.VictimTest#v\r\n", encoding="utf-16")
+        self.assertEqual(read_order(path, V), [P, V])
+
+    def test_order_file_that_is_not_text_is_refused_not_a_traceback(self):
+        path = Path(tempfile.mkdtemp(prefix="flaketrace-order-")) / "order.txt"
+        path.write_bytes(bytes([0x80, 0x81, 0x82]))
+        with self.assertRaises(OrderFileError):
+            read_order(path, V)
+
     def test_missing_order_file_exits_2_before_maven(self):
         with mock.patch("runner.cli.diagnose") as diagnose:
             code, _, err = run_cli(["diagnose", "--project", str(project_with_pom()), "--victim", str(V),
@@ -304,6 +314,17 @@ class TestReports(unittest.TestCase):
         text = summary(report, Path("r.report.json")).splitlines()
         self.assertIn("  orders:     given order 20x, 31 distinct shuffled orders, alone 20x: never failed", text)
         self.assertIn("  bound:      failure rate in the given order < 0.161 (95% Wilson), not proof of reliability", text)
+
+    def test_summary_names_crashes_instead_of_never_failed(self):
+        report = dict(self.report_with_resource(), polluters=[], shared_resource=None, outcome="UNRESOLVED",
+                      unresolved_reason="NOT_REPRODUCED",
+                      reproduction={"successes": 0, "n": 3, "lower": 0.0, "upper": 0.561},
+                      victim_alone={"successes": 0, "n": 3},
+                      order_exploration={"order_given": False, "shuffled_orders_tried": 4,
+                                         "orders_exhausted": True, "seed_base": 0, "reproducing_seed": None})
+        text = summary(report, Path("r.report.json"), crashes=7)
+        self.assertIn("  orders:     discovered order 3x, 4 distinct shuffled orders (no further distinct order "
+                      "found), alone 3x: no real failure (7 runs crashed or timed out)", text.splitlines())
 
     def test_summary_says_discovered_order_when_no_order_was_given(self):
         report = dict(self.report_with_resource(), polluters=[], shared_resource=None, outcome="UNRESOLVED",

@@ -727,3 +727,31 @@ UNRESOLVED (NOT_REPRODUCED)  odfixture.EnvDependentNegativeTest#onlyFailsUnderCI
 - Full runner suite: `Ran 137 tests in 337.792s — OK`.
 - For Member 3: the report's own `limitations` text from `assemble_report` says "runs of the given
   order" even without `--order`; `DiagnosisRuns.order_given` now tells which. Not edited (eval/ is M3's).
+
+### 2026-10-11 — ADR-008 final review and fixes
+
+**Review:** separate reviewer agent on the whole branch (`39b2dff..92b4e96`) against ADR-008 and the
+plan: no critical; three important; six minor. The five review-focus items held (BOM/CRLF file, a
+two-order suite, victim-first shuffle, `--shuffles 0`, seeds in the record).
+- Fixed, each with a test that FAILED first (fast run before the fixes: `FAILED (failures=5, errors=4)`):
+  1. alone or shuffle runs that only crashed/timed out were summarised as "never failed" → counted in
+     `shuffle_infrastructure_failures` / `alone_infrastructure_failures`; summary says "no real failure
+     (N runs crashed or timed out)" (`test_crash_only_alone_and_shuffles_are_counted_not_called_never_failed`,
+     `test_summary_names_crashes_instead_of_never_failed`);
+  2. an `--order` file in UTF-16 (PowerShell 5.1 `>`) crashed with `UnicodeDecodeError` → read as UTF-16;
+     non-text bytes → exit 2 (`test_utf16_order_file_from_powershell_is_read`,
+     `test_order_file_that_is_not_text_is_refused_not_a_traceback`);
+  3. the unknown-test check had no test → `test_unknown_test_in_a_given_order_is_refused_and_says_why`;
+     the message now gives the count and that only Surefire's default includes are discovered;
+  4. (re-graded from minor) the starting order was counted as one of the shuffled orders → excluded
+     (`test_the_starting_order_is_never_counted_as_a_shuffle`; the two-order and three-class counts
+     drop by one);
+  5. (re-graded) "(all possible)" claimed exhaustion that is only sampled → "(no further distinct order found)";
+  6. (re-graded) for a victim that fails only alone, `original_failing_order` named an order that never
+     failed → `[victim]`.
+  README: `NO_SINGLE_POLLUTER` can now also follow a one-off shuffle failure (documented).
+- After: fast tests `Ran 73 tests — OK`; full runner suite `Ran 143 tests in 330.187s — OK`; F4 and N3 by
+  hand unchanged (F4 `VERIFIED` via seed 1 after 2 orders; N3 `NOT_REPRODUCED`, 31 orders, bound 0.161).
+- Deferred minor: `read_order`'s duplicate check is quadratic (fine for thousands of lines).
+- For Member 3: crash counts for shuffles and alone runs are on `DiagnosisRuns` but not in the report;
+  whether alone-only crashes should become `INFRASTRUCTURE_FAILURE` is the decision table's call.

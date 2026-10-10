@@ -61,6 +61,12 @@ the failing order after the victim, as today.
 - During shuffling a run "reproduces" only with a real exception; a crash, timeout or skip is counted
   as an infrastructure failure, never as a reproduction.
 - Execution-record step label `"shuffle"`, with a `seed` field on those lines.
+- *(Final review, 2026-10-11)* The starting order is never counted as a shuffled order (it already
+  ran n times). "Exhausted" means no further distinct order was found within 10 × budget seeds —
+  sampled, not proven — and is worded that way. Shuffle and alone runs that only crash or time out
+  are counted (`shuffle_infrastructure_failures`, `alone_infrastructure_failures`) and the summary
+  says "no real failure (N runs crashed or timed out)" instead of "never failed". When the only
+  failure is the victim alone, the reported failing order is `[victim]`.
 
 ### Budget: 31 shuffled orders
 

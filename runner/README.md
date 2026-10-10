@@ -112,7 +112,7 @@ runs.source_integrity.passed, runs.execution_record   # flaketrace-records/<time
 | --- | --- | --- |
 | `POLLUTER_FOUND` | one earlier test makes the victim fail with the reference signature — or, when none does alone, `ddmin` found a 1-minimal set of earlier tests that does (F3) | `polluters + [victim]` |
 | `VICTIM_FAILS_ALONE` | the victim reproduced its failure with nothing before it — no polluter is blamed | `[victim]` (counts = alone counts) |
-| `NO_SINGLE_POLLUTER` | the victim is first in the order, so there is nothing before it to minimise (only with flakiness) | the original order |
+| `NO_SINGLE_POLLUTER` | a failure was seen (in the starting order or once in a shuffled order) but did not come back: no single earlier test reproduces it and the full order did not fail again (likely flaky; also a victim first in the order) — no test is blamed | the failing order |
 | `NOT_REPRODUCED` | the victim never failed for real in `n` runs of the starting order, in up to 31 distinct class-first shuffled orders (ADR-008), or in `n` runs alone; crashes/timeouts are counted in `sequence_any_failures` and `infrastructure_failures` | the starting order |
 
 ## Command line (W9)

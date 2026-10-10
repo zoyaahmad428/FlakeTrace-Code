@@ -667,3 +667,18 @@ reading the real N3 output, fixed test-first; (2) a generated test contained a r
 instead of the `\ufeff` escape — replaced with the visible escape.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 final review and fixes
+
+**Tool:** Claude Opus 5.5 (author session) + a separate reviewer agent · **Level:** L2
+
+**What was found:** important — crash-only runs summarised as "never failed"; UTF-16 order files
+crashed; the unknown-test check untested. Re-graded to important for honesty: the starting order counted
+as a shuffle, "(all possible)" claimed without proof, a never-failing order reported as the failing one.
+
+**What was retained:** six fixes, each with a test that failed first; ADR-008 clarified; README row.
+
+**What was wrong (session):** generated test code again turned `\r\n` escapes and `\` line
+continuations into real line breaks; found by reading the file back and fixed before running.
+
+**What I changed:** *fill after reading the diff.*

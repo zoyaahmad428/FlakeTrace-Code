@@ -39,9 +39,14 @@ class TestShuffle(unittest.TestCase):
     def test_small_suite_is_exhausted_honestly(self):
         two = [TestIdentifier("pkg.BTest", "b"), V]
         shuffles, exhausted = distinct_shuffles(two, V, budget=31, seed_base=0)
-        self.assertEqual({tuple(o) for _, o in shuffles}, {(V,), (two[0], V)})
-        self.assertEqual(len(shuffles), 2)
+        # The starting order [B, V] already ran; only [V] is a new order.
+        self.assertEqual([tuple(o) for _, o in shuffles], [(V,)])
         self.assertTrue(exhausted)
+
+    def test_the_starting_order_is_never_counted_as_a_shuffle(self):
+        start = suite(classes=3, methods=1)
+        shuffles, _ = distinct_shuffles(start, V, budget=31, seed_base=0)
+        self.assertNotIn(tuple(start), [tuple(o) for _, o in shuffles])
 
     def test_victim_first_shuffle_is_a_distinct_order(self):
         shuffles, _ = distinct_shuffles(suite(classes=3, methods=1), V, budget=31, seed_base=0)

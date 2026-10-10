@@ -29,10 +29,12 @@ def class_first_shuffle(order: Sequence[TestIdentifier], seed: int) -> List[Test
 def distinct_shuffles(
     order: Sequence[TestIdentifier], victim: TestIdentifier, budget: int, seed_base: int
 ) -> Tuple[List[Tuple[int, List[TestIdentifier]]], bool]:
-    """Up to `budget` distinct shuffled orders, each cut after the victim, with their seeds.
-    The second value is True when fewer were found within 10 x budget seeds (orders exhausted)."""
+    """Up to `budget` distinct shuffled orders, each cut after the victim and different from the
+    starting order, with their seeds. The second value is True when fewer were found within
+    10 x budget seeds (no further distinct order found -- sampled, not proven exhaustive)."""
     found: List[Tuple[int, List[TestIdentifier]]] = []
-    seen = set()
+    start = list(order)[: list(order).index(victim) + 1]
+    seen = {tuple(start)}  # the starting order already ran; it is not a new shuffled order
     for seed in range(seed_base, seed_base + 10 * budget):
         if len(found) == budget:
             break

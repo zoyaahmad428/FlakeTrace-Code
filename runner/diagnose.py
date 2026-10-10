@@ -55,6 +55,8 @@ class DiagnosisRuns:
     shuffle_seed_base: int = 0
     reproducing_seed: Optional[int] = None
     infrastructure_failures: int = 0
+    shuffle_infrastructure_failures: int = 0  # shuffle runs where the victim only crashed/timed out
+    alone_infrastructure_failures: int = 0  # same for alone runs when nothing reproduced
 
 
 def run_steps(
@@ -83,8 +85,10 @@ def run_steps(
         # The starting order never failed for real: try valid shuffled orders of the whole suite (ADR-008).
         _label(runner, "shuffle")
         candidates, exhausted = distinct_shuffles(full, victim, shuffles, seed_base)
-        seed, found, found_reference, tried, _ = search_orders(runner, candidates, victim)
-        explore.update(shuffled_orders=tried, orders_exhausted=exhausted and found is None)
+        seed, found, found_reference, tried, shuffle_any = search_orders(runner, candidates, victim)
+        explore.update(shuffled_orders=tried, orders_exhausted=exhausted and found is None,
+                       # every failure before the reproducing one was a crash, timeout or skip
+                       shuffle_infrastructure_failures=shuffle_any - (1 if found is not None else 0))
         if found is not None:
             order, reference = found, found_reference
             explore["reproducing_seed"] = seed
@@ -93,13 +97,15 @@ def run_steps(
     if reference is None:
         alone_reference, alone_matches, alone_any = repeat_without_reference(runner, victim, n)
         if alone_reference is not None:
-            return DiagnosisRuns(VICTIM_FAILS_ALONE, victim, order, alone_reference, [], [victim],
+            # The only order that failed is the victim alone, so that is the failing order reported.
+            return DiagnosisRuns(VICTIM_FAILS_ALONE, victim, [victim], alone_reference, [], [victim],
                                  n, alone_matches, alone_any, n, alone_matches, 0, **explore)
-        # No real failure anywhere, so every failure counted in the starting order was a
+        # No real failure anywhere, so every failure counted (order, shuffles, alone) was a
         # crash, timeout or skip.
         return DiagnosisRuns(NOT_REPRODUCED, victim, order, None, [], order,
                              attempts, 0, attempt_failures, n, 0, 0,
-                             infrastructure_failures=attempt_failures, **explore)
+                             infrastructure_failures=attempt_failures,
+                             alone_infrastructure_failures=alone_any, **explore)
     alone_successes, alone_any = repeat(runner, [victim], victim, reference, n)
     if alone_successes >= 1:
         return DiagnosisRuns(VICTIM_FAILS_ALONE, victim, order, reference, [], [victim],
@@ -160,7 +166,10 @@ def diagnose(
         known = set(discovered)
         unknown = [test for test in original_order if test not in known]
         if unknown:
-            raise DiagnoseInputError(f"{unknown[0]} in the given order is not one of the project's tests")
+            raise DiagnoseInputError(
+                f"{len(unknown)} test(s) in the given order are not among the project's tests (first: "
+                f"{unknown[0]}); only classes matching Surefire's default includes (Test*, *Test, *Tests, "
+                "*TestCase) are discovered")
     order = list(original_order) if original_order is not None else discovered
     if victim not in order:
         # Checked before the recorder exists, so no empty record is left behind.

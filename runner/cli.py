@@ -93,7 +93,9 @@ def run_diagnose(project: Path, victim_id: str, n: int, records: str, order_path
     report_path = Path(runs.execution_record).with_suffix(".report.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     ddmin_ran = runs.minimise_runs and runs.polluters
-    print(summary(report, report_path, (len(runs.original_order) - 1, runs.minimise_runs) if ddmin_ran else None))
+    crashes = runs.infrastructure_failures + runs.shuffle_infrastructure_failures + runs.alone_infrastructure_failures
+    print(summary(report, report_path, (len(runs.original_order) - 1, runs.minimise_runs) if ddmin_ran else None,
+                  crashes))
     return 0
 
 
@@ -137,7 +139,8 @@ def _depth_note(edge: dict) -> str:
     return f" (evidence at depth {depth}, above the default {DEFAULT_DEPTH})" if depth > DEFAULT_DEPTH else ""
 
 
-def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]] = None) -> str:
+def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]] = None,
+            crashes: int = 0) -> str:
     """`minimised` = (earlier tests, ddmin runs) when ddmin found the polluters (ADR-007); the report's
     schema has no field for it, so only the summary says how far the order was shrunk."""
     reason = f" ({report['unresolved_reason']})" if report["unresolved_reason"] else ""
@@ -154,12 +157,14 @@ def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]
         lines.append(f"  orders:     reproduced in shuffled order (seed {explored['reproducing_seed']}) "
                      f"after {explored['shuffled_orders_tried']} shuffled orders")
     if report["unresolved_reason"] == "NOT_REPRODUCED" and explored:
-        exhausted = " (all possible)" if explored["orders_exhausted"] else ""
+        exhausted = " (no further distinct order found)" if explored["orders_exhausted"] else ""
+        # A crash or timeout is not a pass: never say "never failed" when runs only crashed.
+        result = f"no real failure ({crashes} runs crashed or timed out)" if crashes else "never failed"
         # "given" only for an order from --order; otherwise FlakeTrace discovered it.
         source = "given" if explored["order_given"] else "discovered"
         lines.append(f"  orders:     {source} order {report['reproduction']['n']}x, "
                      f"{explored['shuffled_orders_tried']} distinct shuffled orders{exhausted}, "
-                     f"alone {report['victim_alone']['n']}x: never failed")
+                     f"alone {report['victim_alone']['n']}x: {result}")
         lines.append(f"  bound:      failure rate in the {source} order < {report['reproduction']['upper']:.3f} "
                      "(95% Wilson), not proof of reliability")
     if report["shared_resource"]:
@@ -184,9 +189,14 @@ class OrderFileError(Exception):
 def read_order(path: Path, victim: TestIdentifier) -> List[TestIdentifier]:
     """One Class#method per line; blank and # lines ignored; BOM and CRLF allowed (ADR-008)."""
     try:
-        text = path.read_text(encoding="utf-8-sig")
+        data = path.read_bytes()
     except OSError as error:
         raise OrderFileError(f"cannot read --order file {path}: {error.strerror}")
+    try:
+        # Windows PowerShell 5.1's `>` writes UTF-16 with a BOM; everything else is UTF-8 (BOM optional).
+        text = data.decode("utf-16") if data[:2] in (b"\xff\xfe", b"\xfe\xff") else data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise OrderFileError(f"--order file {path} is not UTF-8 or UTF-16 text")
     order: List[TestIdentifier] = []
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()

@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from eval.baseline import FailureSignature, RunOutcome, TestIdentifier
@@ -121,8 +122,9 @@ class TestRunSteps(unittest.TestCase):
         self.assertEqual(runs.status, NOT_REPRODUCED)
         self.assertIsNone(runs.reference_signature)
         self.assertEqual((runs.sequence_n, runs.alone_n, runs.alone_successes), (3, 3, 0))
-        # Cut orders of three one-method classes: [V], [A,V], [B,V], [A,B,V], [B,A,V] — 5 in total.
-        self.assertEqual(runs.shuffled_orders, 5)
+        # Cut orders of three one-method classes: [V], [A,V], [B,V], [A,B,V], [B,A,V]; the starting
+        # order [A,B,V] already ran, so 4 are new.
+        self.assertEqual(runs.shuffled_orders, 4)
         self.assertTrue(runs.orders_exhausted)
 
     def test_failing_alone_without_a_reference_is_victim_fails_alone(self):
@@ -131,6 +133,32 @@ class TestRunSteps(unittest.TestCase):
         self.assertEqual(runs.status, VICTIM_FAILS_ALONE)
         self.assertEqual(runs.reference_signature, REF)
         self.assertEqual((runs.alone_n, runs.alone_successes), (3, 3))
+        # The only order that failed is the victim alone; the starting order never did.
+        self.assertEqual(runs.original_order, [V])
+
+    def test_crash_only_alone_and_shuffles_are_counted_not_called_never_failed(self):
+        timeout = RunOutcome(passed=False, failure_signature=FailureSignature("flaketrace.Timeout", "", "120s"))
+        crash = RunOutcome(passed=False, failure_signature=FailureSignature("flaketrace.JvmCrash", "", "code 1"))
+        def outcome(order, test):
+            if test != V or order == [A, B, V]:
+                return PASS
+            return timeout if order == [V] else crash
+        runs = run_steps(FakeOrderRunner(outcome), [A, B, V], V, n=3, shuffles=31)
+        self.assertEqual(runs.status, NOT_REPRODUCED)
+        self.assertEqual(runs.infrastructure_failures, 0)
+        self.assertEqual(runs.shuffle_infrastructure_failures, runs.shuffled_orders)
+        self.assertEqual(runs.alone_infrastructure_failures, 3)
+
+    def test_unknown_test_in_a_given_order_is_refused_and_says_why(self):
+        project = Path(tempfile.mkdtemp(prefix="flaketrace-project-"))
+        with mock.patch("runner.diagnose.maven_test_classpath", return_value=[]), \
+                mock.patch("runner.diagnose.OrderRunner"), \
+                mock.patch("runner.diagnose.discover_order", return_value=[A, V]):
+            with self.assertRaises(DiagnoseInputError) as raised:
+                diagnose(project, V, original_order=[LATER, A, V], record_dir=tempfile.mkdtemp())
+        self.assertIn("1 test(s)", str(raised.exception))
+        self.assertIn(str(LATER), str(raised.exception))
+        self.assertIn("Surefire", str(raised.exception))
 
     def test_crash_only_not_reproduced_counts_infrastructure_failures(self):
         crash = RunOutcome(passed=False, failure_signature=FailureSignature("flaketrace.JvmCrash", "", "code 1"))
