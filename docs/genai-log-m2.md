@@ -571,3 +571,37 @@ A6 (Member 1) left open — not ours to close.
 the commit and OS were really recorded (previous commit).
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-10 — ADR-008 design (NOT_REPRODUCED and order search)
+
+**Tool:** Claude Opus 5.5 (brainstorming) · **Level:** L2
+
+**What was asked:** a research-based design for failures that do not reproduce, "not because it is
+simple".
+
+**Decisions made by Member 2:** accept the real failing order (`--order`) plus valid shuffled orders as
+fallback (C); 31 shuffles (Gruber et al.) over 10 or 20; one diagnosis flow over a separate command or
+reusing the evaluation baseline.
+
+**What was retained:** ADR-008 — flow, class-first shuffling, distinct-order counting, the schema
+proposal for Member 3, fixture requests F4/N3, order of work.
+
+**What was found while checking:** reference [12] (the 31-order figure) studies Python projects; the
+ADR states its transfer to JUnit as an assumption instead of a finding.
+
+**What I changed:** *fill after reading the diff.*
+
+## 2026-10-10 — Record agreed ADRs (I1, I3, I4, E14, ADR-007 wording)
+
+**Tool:** Claude Opus 5.5 · **Level:** L1
+
+**What was asked:** record what M1's and M3's ticks (PRs #43, #44) settled.
+
+**What was retained:** `docs/contracts/interfaces.md` I1, I3, I4 marked answered with links to ADR-003,
+-004, -005 (each agreed by all three); claim E14 SETTLED; ADR-007's evidence sentence corrected to
+`analyse_pair` (stale text found by Member 1). I2 left to Member 1.
+
+**How it was verified:** every ADR's agreement table read on `main`; the quoted Wilson bounds recomputed
+(20/20 → 0.839, 19/20 → 0.764); the ADR links resolve.
+
+**What I changed:** *fill after reading the diff.*

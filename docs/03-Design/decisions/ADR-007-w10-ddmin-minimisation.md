@@ -68,8 +68,8 @@ search finds nothing.** F1/F2 cost exactly what they cost today.
 
 ### Evidence and report for several polluters (`runner/cli.py`)
 
-M1's pair mode per polluter (`analyse_test` for each polluter, the victim once, `find_edges`,
-depth 2), combined by a small pure function:
+M1's pair mode per polluter (`analyse_pair(classes, polluter, victim)`, which starts at depth 2
+and deepens on its own when nothing is found, ADR-006), combined by a small pure function:
 
 | Case | Report fields |
 | --- | --- |

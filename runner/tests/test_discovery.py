@@ -41,15 +41,17 @@ class TestDiscoveryOnFixture(unittest.TestCase):
         runner = OrderRunner(maven_test_classpath(FIXTURE), working_dir=FIXTURE)
         cls.order = discover_order(runner, FIXTURE / "target" / "test-classes")
 
-    def test_all_thirteen_fixture_methods_in_alphabetical_class_order(self):
-        self.assertEqual(len(self.order), 13)
+    def test_all_fixture_methods_in_alphabetical_class_order(self):
+        # 16, not 13: ADR-008 added AlwaysEarlyVictimTest/ZzzLatePolluterTest (F4) and
+        # EnvDependentNegativeTest (N3), chosen to sort first and last/near-last respectively.
+        self.assertEqual(len(self.order), 16)
         classes = [t.class_name for t in self.order]
         self.assertEqual(classes, sorted(classes))
         self.assertEqual(self.order[:2], [
+            TestIdentifier("odfixture.AlwaysEarlyVictimTest", "expectsLateFlagUnset"),
             TestIdentifier("odfixture.ConfigPolluterTest", "pollute"),
-            TestIdentifier("odfixture.ConfigVictimTest", "expectsDefaultMode"),
         ])
-        self.assertEqual(self.order[-1], TestIdentifier("odfixture.ToggleVictimTest", "expectsNotBothFlagsSet"))
+        self.assertEqual(self.order[-1], TestIdentifier("odfixture.ZzzLatePolluterTest", "setLateFlag"))
 
     def test_class_with_two_methods_lists_both(self):
         math = [t.method for t in self.order if t.class_name == "odfixture.MathUtilTest"]

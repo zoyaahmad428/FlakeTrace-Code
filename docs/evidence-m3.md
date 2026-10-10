@@ -1136,12 +1136,40 @@ of the designed "exit 3, no report yet" behaviour, regardless of which of the tw
   Not done directly — I have no GitHub write access in this environment; drafted a comment for
   the member to post, and will tick the actual ADR file in a follow-up PR once #42 merges
   (same pattern as ADR-006/007).
-- **Still open, found independently, not yet mentioned by Member 2**: PR #45's real CI `runner`
-  job is failing for a different, real reason — three hardcoded counts in `runner/tests/`
-  (M2's folder) are now stale because this PR's new F4/N3 fixture classes changed the
-  fixture's real discovered-order size (13 → 16 methods) and F3's search prefix (12 → 14).
-  Reproduced locally: `test_discovery.TestDiscoveryOnFixture.test_all_thirteen_fixture_methods_in_alphabetical_class_order`,
-  `test_diagnose.TestDiagnoseOnFixture.test_f3_two_polluters_are_found_by_minimisation`, and
-  `test_cli.TestCliOnFixture.test_f3_two_polluters_verified` all fail on the new real counts.
-  Not fixed here — `runner/tests/` is not my folder; flagged to the member to relay or to
-  approve me fixing the three numbers directly.
+- **Found independently, not mentioned by Member 2**: PR #45's real CI `runner` job was
+  failing for a different, real reason — three hardcoded counts in `runner/tests/` (M2's
+  folder) were stale because this PR's new F4/N3 fixture classes changed the fixture's real
+  discovered-order size (13 → 16 methods) and F3's search prefix (12 → 14). Flagged to the
+  member, who authorized fixing it directly rather than waiting on Member 2 — see the next
+  entry for the fix itself and the real re-verification.
+
+## 2026-10-11 — Fix the 3 stale hardcoded counts in `runner/tests/`, with the member's go-ahead
+
+**Requirement:** the member authorized fixing the three CI failures named above directly,
+rather than relaying them to Member 2 first. `runner/tests/` is not my folder, so this is
+recorded explicitly, with the real reasoning, rather than a silent edit.
+
+- Re-verified the real discovered order first (`runner.discovery.discover_order` on the
+  compiled fixture, native Windows JDK 24): **16** methods, `AlwaysEarlyVictimTest#...` first,
+  `ZzzLatePolluterTest#...` last — matches the design intent exactly (both chosen to sort at
+  the extremes).
+- File/function: `runner/tests/test_discovery.py` —
+  `test_all_thirteen_fixture_methods_in_alphabetical_class_order` renamed to
+  `test_all_fixture_methods_in_alphabetical_class_order` (the literal "thirteen" is no longer
+  true); asserts `len == 16`, first two = `[AlwaysEarlyVictimTest#expectsLateFlagUnset,
+  ConfigPolluterTest#pollute]`, last = `ZzzLatePolluterTest#setLateFlag`.
+- File/function: `runner/tests/test_diagnose.py` — ran the real test first to get the exact
+  number rather than computing it by hand:
+  `py -m unittest runner.tests.test_diagnose.TestDiagnoseOnFixture.test_f3_two_polluters_are_found_by_minimisation`
+  → real failure, `AssertionError: 14 != 12`, confirming the exact new value. Updated
+  `search_runs` assertion from 12 to 14, with a comment naming the real cause (two of the new
+  classes sort before F3's victim, growing its search prefix).
+- File/function: `runner/tests/test_cli.py` — same real cause; updated the summary-line
+  substring assertion from `"12 earlier tests"` to `"14 earlier tests"`.
+- Command: `py -m unittest discover -s runner/tests -v` (real JVM runs, native Windows JDK 24).
+  Result: **108/108 passed** (was 105/108 before this fix, confirmed by reproducing the 3
+  failures first).
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 80/80 passed (unaffected, as
+  expected — pure Python logic, no JVM).
+- Limitation: none found beyond the three fixed. CI on JDK 8/Linux not yet re-confirmed from
+  this exact commit (runs on the PR).

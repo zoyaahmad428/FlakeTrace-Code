@@ -815,3 +815,35 @@ Ownership checkpoint: be able to explain why this guard checks `alone_n == 0` sp
 `DecisionInput` only objects when the isolation count is actually missing, so the guard should
 stop being reachable the moment Member 2's `diagnose()` starts providing it, without needing
 another code change here.
+
+## 2026-10-11 — Fix the 3 stale runner/tests/ counts, with explicit go-ahead
+
+**What I asked:** Asked directly "check the status and fix the things that need to be fixed,"
+after the previous session had explicitly offered a choice (relay to Member 2, or fix the
+three hardcoded counts myself) and left it open. This phrasing read as authorization to
+proceed on the already-named, already-diagnosed fix, not a new open-ended instruction.
+
+**What was retained:** The exact scope already scoped in the previous session — three number
+updates, no redesign. Before editing anything in `runner/tests/` (not my folder), re-ran the
+real discovery and the real failing test to get the exact current numbers (16, 14) rather than
+computing them by hand from the fixture's source, so the fix is grounded in a real measurement
+each time, not arithmetic I might get subtly wrong.
+
+**What I changed:** Renamed one test (`test_all_thirteen_fixture_methods_in_alphabetical_class_order`
+→ `test_all_fixture_methods_in_alphabetical_class_order`) since the literal "thirteen" stopped
+being true — a naming correction beyond the minimal fix, but one directly tied to it (leaving
+a false number in a test's own name would be worse than the stale assertion it replaced).
+
+**How it was verified:** `py -m unittest discover -s runner/tests -v` (real JVM runs) → 108/108
+passed, up from 105/108 (the 3 failures reproduced first, before any edit). `py -m unittest
+discover -s eval/tests -v` → 80/80 passed, unaffected as expected.
+
+**Errors found:** None beyond the three already identified and logged in the previous session.
+
+**Rejections:** None — this was the member's own authorization, acted on as given.
+
+Ownership checkpoint: be able to explain, without AI, why these three numbers are a
+*consequence* of F4/N3's design (their class names were deliberately chosen to sort at the
+alphabetical extremes), not an arbitrary magic-number bump — so if another fixture class is
+ever added later, the same two tests (discovery count, F3's search-prefix size) are the first
+place to re-check, for the same reason.
