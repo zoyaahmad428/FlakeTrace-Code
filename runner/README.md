@@ -94,6 +94,7 @@ one; each has its own tests in `runner/tests/`.
 | `discovery.py` | `discover_order(runner, target/test-classes)`: classes matching Surefire's default includes (`Test*`, `*Test`, `*Tests`, `*TestCase`, no `$`), sorted by full name; methods from JUnit via `java FtHarness --list <file>` (stdin: class names; file: `Class#method` lines). Surefire's default `runOrder` is `filesystem` — pass an explicit order for such projects | done |
 | `search.py`, `verify.py` | `reproduce` — run the original order until the victim fails; that failure is the reference signature (a `flaketrace.*` crash/timeout/skip never is). `find_polluter` — `[candidate, victim]` once per earlier test, `priority` first; first match wins. `repeat` — n runs → (matching, any-signature) victim failures | done |
 | `minimise.py` | `ddmin(runner, prefix, victim, reference)` → 1-minimal subset of the tests before the victim and the runs used; only the reference failure counts, each subset runs at most once (W10, ADR-007) | done |
+| `orders.py` | When the starting order never fails for real: up to 31 distinct valid shuffled orders (classes shuffled, then methods within each class; never interleaved), one run each, seeds recorded; the first real failure becomes the failing order (ADR-008) | done |
 | `diagnose.py` | `diagnose(project, victim, n=20)` → `DiagnosisRuns` (raw counts, no verdict); `run_steps(runner, order, victim, n)` is the same logic on any runner | done |
 
 ```python
@@ -111,8 +112,8 @@ runs.source_integrity.passed, runs.execution_record   # flaketrace-records/<time
 | --- | --- | --- |
 | `POLLUTER_FOUND` | one earlier test makes the victim fail with the reference signature — or, when none does alone, `ddmin` found a 1-minimal set of earlier tests that does (F3) | `polluters + [victim]` |
 | `VICTIM_FAILS_ALONE` | the victim reproduced its failure with nothing before it — no polluter is blamed | `[victim]` (counts = alone counts) |
-| `NO_SINGLE_POLLUTER` | the victim is first in the order, so there is nothing before it to minimise (only with flakiness) | the original order |
-| `NOT_REPRODUCED` | the victim never failed with a real failure in `n` runs of the original order (crashes/timeouts are counted in `sequence_any_failures`); alone check not run (`alone_n = 0`) | the original order |
+| `NO_SINGLE_POLLUTER` | a failure was seen (in the starting order or once in a shuffled order) but did not come back: no single earlier test reproduces it and the full order did not fail again (likely flaky; also a victim first in the order) — no test is blamed | the failing order |
+| `NOT_REPRODUCED` | the victim never failed for real in `n` runs of the starting order, in up to 31 distinct class-first shuffled orders (ADR-008), or in `n` runs alone; crashes/timeouts are counted in `sequence_any_failures` and `infrastructure_failures` | the starting order |
 
 ## Command line (W9)
 
@@ -128,6 +129,9 @@ py -m runner diagnose --project fixtures/od-fixture --victim odfixture.ConfigVic
 | `--victim` | required | failing test, `Class#method` |
 | `--n` | `20` | repeat count |
 | `--records` | `flaketrace-records` | folder for the execution record and the report (outside the project) |
+| `--order` | none | file with the real failing order, one `Class#method` per line (`#` comments and blank lines ignored); without it the discovered order is used (ADR-008) |
+| `--shuffles` | `31` | distinct class-first shuffled orders to try when the starting order never fails (Gruber et al. [12], a Python study — assumption for JUnit); `0` turns it off |
+| `--seed` | `0` | first shuffle seed; every seed tried is in the execution record |
 
 It runs `diagnose()`, Member 1's `find_edges`/`report_fields` at depth 2 when a polluter is found,
 and Member 3's `assemble_report()`, then writes `<record>.report.json` next to the record. Real
@@ -147,7 +151,7 @@ VERIFIED  odfixture.ConfigVictimTest#expectsDefaultMode
 | 0 | report written — any outcome, including `UNRESOLVED` |
 | 2 | input wrong (`--victim` not Java `Class#method`, no `pom.xml`, `--n` < 1, records inside the project or a file, unknown victim) |
 | 1 | a tool failed (Maven, `java`/`javac`/`mvn`, discovery timeout, the extractor/javap) |
-| 3 | no report can be built yet (`NOT_REPRODUCED`, or `NO_SINGLE_POLLUTER` — the victim is first in the order) |
+| 3 | no report can be built yet (`NO_SINGLE_POLLUTER` — the victim is first in the order and the failure did not come back). Since ADR-008, `NOT_REPRODUCED` gives a report and exit 0 |
 
 ## Planned components, in build order
 

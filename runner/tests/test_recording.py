@@ -27,6 +27,14 @@ class TestRecordingRunner(unittest.TestCase):
     def lines(self):
         return [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines()]
 
+    def test_note_is_written_into_run_lines_while_set(self):
+        self.recorder.note = {"seed": 7}
+        self.recorder.run_ordered([A])
+        self.recorder.note = {}
+        self.recorder.run_ordered([A])
+        _, first, second = self.lines()
+        self.assertEqual((first["seed"], "seed" in second), (7, False))
+
     def test_header_is_written_first(self):
         self.assertEqual(self.lines(), [{"type": "header", "victim": "pkg.BTest#b", "n": 3}])
 

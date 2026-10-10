@@ -13,7 +13,7 @@ minimisation, static resource evidence, repeated-run verification.
 | Processing | Fresh-JVM ordered runs → victim-alone check → polluter search → minimisation → javap evidence → `wilson_interval` → `decide()` |
 | Output | A JSON report validated against `eval/schema/report.schema.json`, printed as a readable summary |
 | Dependencies | JDK 8+, Maven, Python 3.11, `jsonschema` |
-| Known limitations | Static evidence only; two resource kinds; F3's report shows one resource (`flagA`) and names the second (`flagB`) in `limitations` |
+| Known limitations | Static evidence only; two resource kinds; F3's report shows one resource (`flagA`) and names the second (`flagB`) in `limitations`; the 31-shuffle budget comes from a Python study (assumption for JUnit) |
 
 ## Running order (8 minutes)
 
@@ -26,6 +26,7 @@ minimisation, static resource evidence, repeated-run verification.
 | 4 | Show source unchanged | Hash match, `git status` clean | `source_integrity.passed = true` | M2 | — |
 | 5 | Diagnose N1 (failure case) | `UNRESOLVED(VICTIM_FAILS_ALONE)` — refuses to blame a polluter | Report JSON | M3 | — |
 | 6 | Diagnose F3 (edge case) | `VERIFIED`: both polluters (`setFlagA`, `setFlagB`) found by `ddmin`, 20/20; `flagB` named in `limitations` | Report JSON | M2 | — |
+| 6b | Optional: diagnose F4 and N3 (ADR-008) | F4 `VERIFIED` through a shuffled order (seed recorded); N3 `UNRESOLVED(NOT_REPRODUCED)` with the bound and "not proof of reliability" | Report JSON + summary | M2 | — |
 | 7 | Show CI run and tests on the PR | Green checks | GitHub Actions | M3 | — |
 | 8 | State boundaries | What is implemented vs not yet | Slide 6 | M2 | — |
 

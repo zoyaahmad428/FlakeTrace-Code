@@ -622,3 +622,76 @@ modified files proved the edits were intact). (3) Restoring `runner/discovery.py
 LF endings; content was identical (empty diff) and the CRLF endings were put back.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 1: shuffled orders
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 1 of `docs/superpowers/plans/2026-10-11-adr-008-runner-side.md`.
+
+**What was retained:** `runner/orders.py` and 9 tests as planned.
+
+**What was wrong:** one planned test sorted `TestIdentifier` tuples (a `TypeError`); fixed to a set
+comparison with the same meaning (ruling in the plan ledger).
+
+**How it was verified:** tests failed first; flat shuffling made the class-grouping test fail; full suite
+117 OK.
+
+**What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 2: diagnosis tries shuffled orders
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 2 of the ADR-008 runner-side plan.
+
+**What was retained:** the shuffle phase, the always-run alone check, the six fields Member 3's report
+code reads, given-order validation, seeds in the execution record; 10 tests that failed first; real F4
+and N3 runs.
+
+**How it was verified:** two mutation checks failed the right tests; full suite 127 OK.
+
+**What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 3: command options and F4/N3 reports
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 3 of the ADR-008 runner-side plan.
+
+**What was retained:** `read_order`, `--order/--shuffles/--seed`, the summary lines, 11 tests (incl.
+real F4 and N3 through the command); docs, demo plan step 6b, W14, claim E15 (OPEN until CI).
+
+**What was wrong:** (1) the summary said "given order" when the order was discovered — caught by
+reading the real N3 output, fixed test-first; (2) a generated test contained a real BOM character
+instead of the `\ufeff` escape — replaced with the visible escape.
+
+**What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 final review and fixes
+
+**Tool:** Claude Opus 5.5 (author session) + a separate reviewer agent · **Level:** L2
+
+**What was found:** important — crash-only runs summarised as "never failed"; UTF-16 order files
+crashed; the unknown-test check untested. Re-graded to important for honesty: the starting order counted
+as a shuffle, "(all possible)" claimed without proof, a never-failing order reported as the failing one.
+
+**What was retained:** six fixes, each with a test that failed first; ADR-008 clarified; README row.
+
+**What was wrong (session):** generated test code again turned `\r\n` escapes and `\` line
+continuations into real line breaks; found by reading the file back and fixed before running.
+
+**What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — Quadratic duplicate check in `read_order`
+
+**Tool:** Claude Opus 5.5 · **Level:** L1
+
+**What was asked:** fix the one deferred review minor too.
+
+**What was retained:** a set for the duplicate check; a test with a 20,001-line order file.
+
+**What was wrong:** the agent had called the minor "fine even for thousands of lines"; the new test
+measured 33 s for 20,001 lines. After the fix: 0.094 s.
+
+**What I changed:** *fill after reading the diff.*

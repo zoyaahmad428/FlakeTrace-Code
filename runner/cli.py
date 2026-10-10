@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from eval.baseline import TestIdentifier
 from eval.report import UnhandledStatus, assemble_report
@@ -37,20 +37,37 @@ def main(argv=None) -> int:
     command.add_argument("--n", type=int, default=20, help="repeat count (default 20)")
     command.add_argument("--records", default="flaketrace-records",
                          help="folder for the execution record and the report")
+    command.add_argument("--order", default=None,
+                         help="file with the real failing order, one Class#method per line (ADR-008)")
+    command.add_argument("--shuffles", type=int, default=31,
+                         help="distinct shuffled orders to try if the order never fails (default 31)")
+    command.add_argument("--seed", type=int, default=0, help="first shuffle seed (default 0)")
     args = parser.parse_args(argv)
-    return run_diagnose(Path(args.project), args.victim, args.n, args.records)
+    return run_diagnose(Path(args.project), args.victim, args.n, args.records,
+                        Path(args.order) if args.order else None, args.shuffles, args.seed)
 
 
-def run_diagnose(project: Path, victim_id: str, n: int, records: str) -> int:
+def run_diagnose(project: Path, victim_id: str, n: int, records: str, order_path: Optional[Path] = None,
+                 shuffles: int = 31, seed: int = 0) -> int:
     # Java names only: the victim also becomes part of the record's file name.
     if not _VICTIM.fullmatch(victim_id):
         return _error(f"--victim must be Class#method (Java names, no spaces), got {victim_id!r}", 2)
     class_name, _, method = victim_id.partition("#")
     if not (project / "pom.xml").is_file():
         return _error(f"no pom.xml in {project}; --project must be a Maven project folder", 2)
+    if shuffles < 0:
+        return _error(f"--shuffles must be >= 0, got {shuffles}", 2)
+    victim = TestIdentifier(class_name, method)
+    order = None
+    if order_path is not None:
+        try:
+            order = read_order(order_path, victim)
+        except OrderFileError as error:
+            return _error(str(error), 2)
 
     try:
-        runs = diagnose(project, TestIdentifier(class_name, method), n=n, record_dir=records)
+        runs = diagnose(project, victim, n=n, record_dir=records, original_order=order,
+                        shuffles=shuffles, seed=seed)
     except DiagnoseInputError as error:
         return _error(str(error), 2)
     except subprocess.CalledProcessError as error:
@@ -76,7 +93,9 @@ def run_diagnose(project: Path, victim_id: str, n: int, records: str) -> int:
     report_path = Path(runs.execution_record).with_suffix(".report.json")
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     ddmin_ran = runs.minimise_runs and runs.polluters
-    print(summary(report, report_path, (len(runs.original_order) - 1, runs.minimise_runs) if ddmin_ran else None))
+    crashes = runs.infrastructure_failures + runs.shuffle_infrastructure_failures + runs.alone_infrastructure_failures
+    print(summary(report, report_path, (len(runs.original_order) - 1, runs.minimise_runs) if ddmin_ran else None,
+                  crashes))
     return 0
 
 
@@ -120,7 +139,8 @@ def _depth_note(edge: dict) -> str:
     return f" (evidence at depth {depth}, above the default {DEFAULT_DEPTH})" if depth > DEFAULT_DEPTH else ""
 
 
-def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]] = None) -> str:
+def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]] = None,
+            crashes: int = 0) -> str:
     """`minimised` = (earlier tests, ddmin runs) when ddmin found the polluters (ADR-007); the report's
     schema has no field for it, so only the summary says how far the order was shrunk."""
     reason = f" ({report['unresolved_reason']})" if report["unresolved_reason"] else ""
@@ -132,6 +152,21 @@ def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]
         count = len(report["polluters"])
         lines.append(f"  minimised:  {earlier} earlier tests -> {count} polluter{'s' if count != 1 else ''} "
                      f"in {runs} runs (1-minimal, not necessarily the minimum)")
+    explored = report.get("order_exploration")
+    if explored and explored["reproducing_seed"] is not None:
+        lines.append(f"  orders:     reproduced in shuffled order (seed {explored['reproducing_seed']}) "
+                     f"after {explored['shuffled_orders_tried']} shuffled orders")
+    if report["unresolved_reason"] == "NOT_REPRODUCED" and explored:
+        exhausted = " (no further distinct order found)" if explored["orders_exhausted"] else ""
+        # A crash or timeout is not a pass: never say "never failed" when runs only crashed.
+        result = f"no real failure ({crashes} runs crashed or timed out)" if crashes else "never failed"
+        # "given" only for an order from --order; otherwise FlakeTrace discovered it.
+        source = "given" if explored["order_given"] else "discovered"
+        lines.append(f"  orders:     {source} order {report['reproduction']['n']}x, "
+                     f"{explored['shuffled_orders_tried']} distinct shuffled orders{exhausted}, "
+                     f"alone {report['victim_alone']['n']}x: {result}")
+        lines.append(f"  bound:      failure rate in the {source} order < {report['reproduction']['upper']:.3f} "
+                     "(95% Wilson), not proof of reliability")
     if report["shared_resource"]:
         resource = " ".join(str(value) for value in report["shared_resource"].values())
         write, read = report["polluter_write_location"], report["victim_read_location"]
@@ -145,6 +180,42 @@ def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]
     lines.append(f"  report:     {report_path}")
     lines.append(f"  record:     {report['execution_record_reference']}")
     return "\n".join(lines)
+
+
+class OrderFileError(Exception):
+    """A problem with the --order file (exit 2)."""
+
+
+def read_order(path: Path, victim: TestIdentifier) -> List[TestIdentifier]:
+    """One Class#method per line; blank and # lines ignored; BOM and CRLF allowed (ADR-008)."""
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise OrderFileError(f"cannot read --order file {path}: {error.strerror}")
+    try:
+        # Windows PowerShell 5.1's `>` writes UTF-16 with a BOM; everything else is UTF-8 (BOM optional).
+        text = data.decode("utf-16") if data[:2] in (b"\xff\xfe", b"\xfe\xff") else data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise OrderFileError(f"--order file {path} is not UTF-8 or UTF-16 text")
+    order: List[TestIdentifier] = []
+    seen = set()  # a set, not the list: a long order would make the duplicate check quadratic
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if not _VICTIM.fullmatch(line):
+            raise OrderFileError(f"--order line {number} is not Class#method: {line!r}")
+        class_name, _, method = line.partition("#")
+        test = TestIdentifier(class_name, method)
+        if test in seen:
+            raise OrderFileError(f"--order lists {test} twice (line {number})")
+        seen.add(test)
+        order.append(test)
+    if not order:
+        raise OrderFileError(f"--order file {path} lists no tests")
+    if victim not in order:
+        raise OrderFileError(f"--order does not contain the victim {victim}")
+    return order
 
 
 def _test(location: dict) -> str:
