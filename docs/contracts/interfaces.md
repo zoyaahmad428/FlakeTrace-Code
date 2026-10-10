@@ -88,7 +88,7 @@ assembled report before it is shown or saved.
 
 | # | Question | Owner to propose | Status |
 | --- | --- | --- | --- |
-| I1 | Language for the runner: Java harness invoked from Python, or all-Java with a JSON boundary? | M2 | Open |
+| I1 | Language for the runner: Java harness invoked from Python, or all-Java with a JSON boundary? | M2 | **Answered:** Python runner launching a small Java harness (`FtHarness`, JUnitCore) in one fresh JVM per order — [ADR-003](../03-Design/decisions/ADR-003-order-runner-junitcore-harness.md), agreed by M1, M2, M3 |
 | I2 | Does M1's extractor run on the full suite once, or per candidate pair? | M1 | Open |
-| I3 | Default `n` for repeated-run verification at Mid (20 suggested by the defence plan) | M2 + M3 | Open |
-| I4 | Where is the single CLI entry point (`flaketrace diagnose …`) and which language? | M2 | Open |
+| I3 | Default `n` for repeated-run verification at Mid (20 suggested by the defence plan) | M2 + M3 | **Answered:** n = 20 (20/20 → Wilson lower bound 0.839, 19/20 → 0.764, both above 0.70) — [ADR-004](../03-Design/decisions/ADR-004-w7-diagnosis-runs.md), agreed by M1, M2, M3 |
+| I4 | Where is the single CLI entry point (`flaketrace diagnose …`) and which language? | M2 | **Answered:** Python, `py -m runner diagnose` from the repository root; an installable `flaketrace` command is deferred — [ADR-005](../03-Design/decisions/ADR-005-w9-diagnose-cli.md), agreed by M1, M2, M3 |
