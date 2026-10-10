@@ -20,7 +20,7 @@ post-defence action plan's two-student split is superseded by the three-member s
 | --- | --- | --- | --- | --- |
 | 1 | Static-field + system-property extraction for F1/F2 | `m1/adr006-deepen` | W8 complete: Phases 2–6 and ADR-006 (depth 1–5, pair-mode auto-deepening; fastjson FJ-01/FJ-02 at `depth_used` 4/5); report chapters next | M2 and M3 switch their calls to `analyse_pair` |
 | 2 | ADR-008: NOT_REPRODUCED reports, `--order`, valid shuffled orders (design) | `m2/adr-008-not-reproduced` | W6-W10 and panel actions A1/A3/A4/A7 merged (#26-#41); ADR-008 proposed, needs M3 (schema, fixtures F4/N3) | M3 agreement |
-| 3 | W9 report assembly done for F1/F2/N1/N2 (real end-to-end, `eval/report.py` wired to M1's real `find_edges`/`report_fields`); report ch. 4 and 7–8 per `08-MidEval/README`'s Form 3 table next | `m3/n2-integration` | Phases 0–5 done; real `VERIFIED`/`UNRESOLVED` reports produced for F1, F2, N1, N2 (see `docs/evidence-m3.md`) | Only F3 remains, needs W10 (M2, multi-polluter search/minimisation — not started) |
+| 3 | ADR-008 implemented (NOT_REPRODUCED handling, new fixture cases F4/N3); report ch. 4 and 7–8 per `08-MidEval/README`'s Form 3 table next | `main` | Phases 0–5 done; real `VERIFIED`/`UNRESOLVED` reports produced for F1, F2, F3 (via M2's W10), N1, N2; N3 confirmed `NOT_REPRODUCED` pending M2's `diagnose()` change; F4 confirmed by hand pending M2's order search (see `docs/evidence-m3.md`) | Report chapters need a refresh against current state; worksheet and tag (W12) not started |
 
 ## Evidence files per member
 
