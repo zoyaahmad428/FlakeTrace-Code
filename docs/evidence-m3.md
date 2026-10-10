@@ -1173,3 +1173,26 @@ recorded explicitly, with the real reasoning, rather than a silent edit.
   expected — pure Python logic, no JVM).
 - Limitation: none found beyond the three fixed. CI on JDK 8/Linux not yet re-confirmed from
   this exact commit (runs on the PR).
+
+## 2026-10-11 — Merge conflict: adopted Member 2's independent, more durable fix over my own
+
+**Requirement:** Member 2 found and fixed the same three stale `runner/tests/` counts
+independently (PR #47, merged to `main` before I'd pushed my own fix). Merging `main` into
+this branch conflicted on exactly the three files I'd also touched.
+
+- Read both sides before resolving anything. Member 2's fix is **not** the same shape as
+  mine — mine hardcoded the new numbers (16, 14); theirs computes the expected answer from
+  the real data every time: `test_discovery.py` now reads every real `@Test` method straight
+  from the fixture's `.java` sources (regex, independent of the discovery code under test) and
+  checks `discover_order`'s result is exactly that set; `test_diagnose.py` and `test_cli.py`
+  now derive the expected count from `len(runs.original_order) - 1` /
+  `len(report["original_failing_order"]) - 1` instead of a literal number.
+- Decision: kept Member 2's version in all three conflicts, discarded my own hardcoded
+  numbers. This isn't deference for its own sake — my fix was correct today but exactly as
+  fragile as the thing that caused this whole problem (a hardcoded count that breaks the next
+  time any fixture case is added); theirs eliminates that class of bug permanently.
+- Command: `py -m unittest discover -s runner/tests -v` (real JVM). Result: **108/108
+  passed**. `py -m unittest discover -s eval/tests -v`: 80/80 passed, unaffected.
+- Limitation: none. My own three-number fix (previous entry) is superseded, not wrong — kept
+  in the log as an honest record of what was actually done at the time, not retroactively
+  edited.

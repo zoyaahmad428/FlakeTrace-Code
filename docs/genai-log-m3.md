@@ -844,6 +844,36 @@ discover -s eval/tests -v` → 80/80 passed, unaffected as expected.
 
 Ownership checkpoint: be able to explain, without AI, why these three numbers are a
 *consequence* of F4/N3's design (their class names were deliberately chosen to sort at the
-alphabetical extremes), not an arbitrary magic-number bump — so if another fixture class is
-ever added later, the same two tests (discovery count, F3's search-prefix size) are the first
-place to re-check, for the same reason.
+alphabetical extremes), not an arbitrary magic-number bump. (Superseded the next day by
+Member 2's fix — see the entry below; the "first place to re-check" framing no longer applies
+once the counts are computed instead of hardcoded.)
+
+## 2026-10-11 — Merge conflict: chose Member 2's fix over my own, same bug
+
+**What I asked:** "Pull the things that need to be pulled, check new PRs and see what is
+done," after the member relayed Member 2's message that they'd independently found and fixed
+the same three stale counts in their own PR (already merged to `main`).
+
+**What was retained:** Nothing of my own fix in the three conflicting files — Member 2's
+version replaced mine entirely in all three.
+
+**What I changed:** Deliberately chose *not* to keep my own code once I saw theirs. This was
+a judgment call, not instructed line-by-line: I compared both shapes (mine: hardcoded 16/14;
+theirs: computed from the real fixture source / the real order at runtime) and recognized
+theirs removes the exact fragility that caused this bug in the first place, where mine would
+just need the same kind of fix again next time a fixture case is added.
+
+**How it was verified:** `py -m unittest discover -s runner/tests -v` (real JVM) → 108/108
+passed. `py -m unittest discover -s eval/tests -v` → 80/80 passed, unaffected.
+
+**Errors found:** None new — this was adopting a better-engineered fix for an
+already-diagnosed bug, not finding a new one.
+
+**Rejections:** My own previous fix, in favour of Member 2's — recorded honestly in both logs
+as superseded, not deleted from the record of what actually happened.
+
+Ownership checkpoint: be able to explain why reading a fixture's `.java` source files
+directly (regex for `package` and `@Test` methods) to build the expected set is more durable
+than hardcoding a count, and why that specific trade-off (a little more test code, zero
+future maintenance) was worth taking here — this is exactly the kind of fix that should
+survive the next fixture case without anyone touching `runner/tests/` again.

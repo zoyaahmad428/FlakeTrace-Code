@@ -217,9 +217,8 @@ class TestDiagnoseOnFixture(unittest.TestCase):
         runs = self.diagnose_case("F3", n=5)
         self.assertEqual(runs.status, POLLUTER_FOUND)
         self.assertEqual(runs.polluters, self.expected_polluters("F3"))
-        # 14, not 12: ADR-008's F4/N3 fixture classes added 2 more candidates to F3's prefix
-        # (AlwaysEarlyVictimTest and EnvDependentNegativeTest both sort before ToggleVictimTest).
-        self.assertEqual(runs.search_runs, 14)
+        # One search run per earlier test; counted from the order, so new fixture cases don't break it.
+        self.assertEqual(runs.search_runs, len(runs.original_order) - 1)
         self.assertGreater(runs.minimise_runs, 0)
         self.assertEqual(runs.sequence_successes, 5)
 

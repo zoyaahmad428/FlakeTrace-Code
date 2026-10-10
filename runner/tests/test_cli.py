@@ -344,8 +344,8 @@ class TestCliOnFixture(unittest.TestCase):
         self.assertEqual(report["shared_resource"], {"kind": "static-field", "class": "odfixture.Toggles", "field": "flagA"})
         self.assertTrue(any("odfixture.Toggles#flagB" in line for line in report["limitations"]), report["limitations"])
         self.assertIn("polluter:   odfixture.ToggleAPolluterTest#setFlagA, odfixture.ToggleBPolluterTest#setFlagB", out)
-        # 14, not 12: ADR-008's F4/N3 fixture classes added 2 more candidates to F3's prefix.
-        self.assertIn("minimised:  14 earlier tests -> 2 polluters in", out)
+        earlier = len(report["original_failing_order"]) - 1  # from the real order, not the fixture's size today
+        self.assertIn(f"minimised:  {earlier} earlier tests -> 2 polluters in", out)
 
     def test_n1_fails_alone(self):
         code, _, err, report = self.diagnose("odfixture.NegativeAloneFailTest#alwaysFails", 5)
