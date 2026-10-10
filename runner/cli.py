@@ -198,6 +198,7 @@ def read_order(path: Path, victim: TestIdentifier) -> List[TestIdentifier]:
     except UnicodeDecodeError:
         raise OrderFileError(f"--order file {path} is not UTF-8 or UTF-16 text")
     order: List[TestIdentifier] = []
+    seen = set()  # a set, not the list: a long order would make the duplicate check quadratic
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -206,8 +207,9 @@ def read_order(path: Path, victim: TestIdentifier) -> List[TestIdentifier]:
             raise OrderFileError(f"--order line {number} is not Class#method: {line!r}")
         class_name, _, method = line.partition("#")
         test = TestIdentifier(class_name, method)
-        if test in order:
+        if test in seen:
             raise OrderFileError(f"--order lists {test} twice (line {number})")
+        seen.add(test)
         order.append(test)
     if not order:
         raise OrderFileError(f"--order file {path} lists no tests")

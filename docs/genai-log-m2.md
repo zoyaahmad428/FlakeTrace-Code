@@ -682,3 +682,16 @@ as a shuffle, "(all possible)" claimed without proof, a never-failing order repo
 continuations into real line breaks; found by reading the file back and fixed before running.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — Quadratic duplicate check in `read_order`
+
+**Tool:** Claude Opus 5.5 · **Level:** L1
+
+**What was asked:** fix the one deferred review minor too.
+
+**What was retained:** a set for the duplicate check; a test with a 20,001-line order file.
+
+**What was wrong:** the agent had called the minor "fine even for thousands of lines"; the new test
+measured 33 s for 20,001 lines. After the fix: 0.094 s.
+
+**What I changed:** *fill after reading the diff.*

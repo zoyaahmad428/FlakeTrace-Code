@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -219,6 +220,13 @@ class TestOrderFile(unittest.TestCase):
                      "pkg.PolluterTest#p\npkg.PolluterTest#p\npkg.VictimTest#v\n", "pkg.PolluterTest#p\n"):
             with self.assertRaises(OrderFileError, msg=text):
                 read_order(self.write(text), V)
+
+    def test_long_order_file_is_read_quickly(self):
+        lines = "".join(f"pkg.T{i}Test#t\n" for i in range(20000)) + "pkg.VictimTest#v\n"
+        started = time.monotonic()
+        order = read_order(self.write(lines), V)
+        self.assertEqual(len(order), 20001)
+        self.assertLess(time.monotonic() - started, 5.0)
 
     def test_utf16_order_file_from_powershell_is_read(self):
         path = self.write("pkg.PolluterTest#p\r\npkg.VictimTest#v\r\n", encoding="utf-16")

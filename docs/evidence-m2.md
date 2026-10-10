@@ -755,3 +755,7 @@ two-order suite, victim-first shuffle, `--shuffles 0`, seeds in the record).
 - Deferred minor: `read_order`'s duplicate check is quadratic (fine for thousands of lines).
 - For Member 3: crash counts for shuffles and alone runs are on `DiagnosisRuns` but not in the report;
   whether alone-only crashes should become `INFRASTRUCTURE_FAILURE` is the decision table's call.
+- Follow-up (the deferred minor, at Member 2's request): `read_order`'s duplicate check used a list.
+  New `test_long_order_file_is_read_quickly` (20,001 lines, < 5 s) FAILED first:
+  `AssertionError: 33.42655189999641 not less than 5.0` — the minor was more than cosmetic. With a set:
+  20,001 lines in 0.094 s; duplicates still refused. Full runner suite: `Ran 144 tests in 327.282s — OK`.
