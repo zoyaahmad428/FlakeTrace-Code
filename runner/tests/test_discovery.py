@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -41,15 +42,20 @@ class TestDiscoveryOnFixture(unittest.TestCase):
         runner = OrderRunner(maven_test_classpath(FIXTURE), working_dir=FIXTURE)
         cls.order = discover_order(runner, FIXTURE / "target" / "test-classes")
 
-    def test_all_thirteen_fixture_methods_in_alphabetical_class_order(self):
-        self.assertEqual(len(self.order), 13)
+    def test_every_fixture_test_method_once_in_alphabetical_class_order(self):
+        # Expected set read from the fixture's sources (every @Test method), independent of the
+        # discovery code under test, so adding a fixture case does not break this.
+        expected = set()
+        for source in (FIXTURE / "src" / "test" / "java").rglob("*.java"):
+            text = source.read_text(encoding="utf-8")
+            package = re.search(r"^package\s+([\w.]+);", text, re.M).group(1)
+            for method in re.findall(r"@Test\s+public\s+void\s+(\w+)\s*\(", text):
+                expected.add(TestIdentifier(f"{package}.{source.stem}", method))
+        self.assertGreater(len(expected), 0)
+        self.assertEqual(len(self.order), len(set(self.order)))
+        self.assertEqual(set(self.order), expected)
         classes = [t.class_name for t in self.order]
         self.assertEqual(classes, sorted(classes))
-        self.assertEqual(self.order[:2], [
-            TestIdentifier("odfixture.ConfigPolluterTest", "pollute"),
-            TestIdentifier("odfixture.ConfigVictimTest", "expectsDefaultMode"),
-        ])
-        self.assertEqual(self.order[-1], TestIdentifier("odfixture.ToggleVictimTest", "expectsNotBothFlagsSet"))
 
     def test_class_with_two_methods_lists_both(self):
         math = [t.method for t in self.order if t.class_name == "odfixture.MathUtilTest"]

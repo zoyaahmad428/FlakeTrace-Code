@@ -217,7 +217,8 @@ class TestDiagnoseOnFixture(unittest.TestCase):
         runs = self.diagnose_case("F3", n=5)
         self.assertEqual(runs.status, POLLUTER_FOUND)
         self.assertEqual(runs.polluters, self.expected_polluters("F3"))
-        self.assertEqual(runs.search_runs, 12)
+        # One search run per earlier test; counted from the order, so new fixture cases don't break it.
+        self.assertEqual(runs.search_runs, len(runs.original_order) - 1)
         self.assertGreater(runs.minimise_runs, 0)
         self.assertEqual(runs.sequence_successes, 5)
 
