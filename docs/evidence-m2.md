@@ -759,3 +759,6 @@ two-order suite, victim-first shuffle, `--shuffles 0`, seeds in the record).
   New `test_long_order_file_is_read_quickly` (20,001 lines, < 5 s) FAILED first:
   `AssertionError: 33.42655189999641 not less than 5.0` — the minor was more than cosmetic. With a set:
   20,001 lines in 0.094 s; duplicates still refused. Full runner suite: `Ran 144 tests in 327.282s — OK`.
+- CI on the PR (`m2/adr-008-runner`, commit `0299e7b`): job `runner` (JDK 8, Linux) -> `Ran 144 tests in 105.225s — OK`
+  (line copied from the job log by Member 2), so F4 via a shuffle and the N3 report also pass on Linux/JDK 8.
+  Claim E15 SETTLED.
