@@ -629,3 +629,14 @@ commit and the OS were not.
   a committed target, claim E1) and **seed** (the runner never shuffles; orders are discovered or given).
 - CI on the PR (`m2/panel-actions`, commit `03fe83a`): job `runner` (JDK 8, Linux) -> `Ran 106 tests in 97.388s — OK`
   (line copied from the job log by Member 2), so the header fields are also written on Linux.
+
+### 2026-10-10 — ADR-008 design (NOT_REPRODUCED, given order, valid shuffled orders)
+
+- Not a run: design only. [[03-Design/decisions/ADR-008-not-reproduced-and-order-search]] proposes
+  `--order`, up to 31 distinct class-first shuffled orders when the starting order does not reproduce,
+  an always-run alone check, and a schema change for Member 3 (`failure_signature` null only for
+  `NOT_REPRODUCED`, optional `order_exploration`, `INFRASTRUCTURE_FAILURE`), plus fixture cases F4 and N3.
+- Facts checked: `eval.stats.wilson_interval(0, 20, 0.95)` → upper `0.1611`; `(0, 31)` → `0.1103`.
+  `docs/01-Literature/references.md`: [3] iDFlakies, [4] iFixFlakies, [5] Rahman et al., [12] Gruber et al.
+  — **"An empirical study of flaky tests in Python"**, so the 31-order figure is a Python result; ADR-008
+  labels its use for JUnit an assumption.
