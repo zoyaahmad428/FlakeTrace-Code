@@ -129,6 +129,9 @@ py -m runner diagnose --project fixtures/od-fixture --victim odfixture.ConfigVic
 | `--victim` | required | failing test, `Class#method` |
 | `--n` | `20` | repeat count |
 | `--records` | `flaketrace-records` | folder for the execution record and the report (outside the project) |
+| `--order` | none | file with the real failing order, one `Class#method` per line (`#` comments and blank lines ignored); without it the discovered order is used (ADR-008) |
+| `--shuffles` | `31` | distinct class-first shuffled orders to try when the starting order never fails (Gruber et al. [12], a Python study — assumption for JUnit); `0` turns it off |
+| `--seed` | `0` | first shuffle seed; every seed tried is in the execution record |
 
 It runs `diagnose()`, Member 1's `find_edges`/`report_fields` at depth 2 when a polluter is found,
 and Member 3's `assemble_report()`, then writes `<record>.report.json` next to the record. Real
@@ -148,7 +151,7 @@ VERIFIED  odfixture.ConfigVictimTest#expectsDefaultMode
 | 0 | report written — any outcome, including `UNRESOLVED` |
 | 2 | input wrong (`--victim` not Java `Class#method`, no `pom.xml`, `--n` < 1, records inside the project or a file, unknown victim) |
 | 1 | a tool failed (Maven, `java`/`javac`/`mvn`, discovery timeout, the extractor/javap) |
-| 3 | no report can be built yet (`NOT_REPRODUCED`, or `NO_SINGLE_POLLUTER` — the victim is first in the order) |
+| 3 | no report can be built yet (`NO_SINGLE_POLLUTER` — the victim is first in the order and the failure did not come back). Since ADR-008, `NOT_REPRODUCED` gives a report and exit 0 |
 
 ## Planned components, in build order
 

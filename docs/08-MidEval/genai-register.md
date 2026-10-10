@@ -79,6 +79,7 @@ Policy context and the four-point ownership standard: [[00-Meta/ai-usage-log]].
 | 2026-10-11 | M3 | Claude Sonnet 5 | L2 | `iteration-plan.md`, `members.md`, `panel-action-register.md` status sync | Corrected 3 stale docs after confirming PR #45 merged | Checked real PR/CI state before writing any correction (W10 merged, not pending; A5's cases all run) | `py -m unittest discover -s eval/tests -v` -> 80/80 OK, sanity check | None — pure documentation lag, not a code issue | [[genai-log-m3]], [[evidence-m3]] |
 | 2026-10-11 | M2 | Claude Opus 5.5 | L2 | `runner/orders.py` + tests (ADR-008 Task 1) | Shuffle code and tests from the ADR-008 plan | *add your edits after review* | Tests failed first; mutation failed the class test; suite 117 OK | One planned test sorted unorderable values; fixed | [[genai-log-m2]], [[evidence-m2]] |
 | 2026-10-11 | M2 | Claude Opus 5.5 | L2 | `runner/diagnose.py`, `verify.py`, `recording.py` + tests (ADR-008 Task 2) | Code and tests from the ADR-008 plan | *add your edits after review* | Tests failed first; real F4/N3; two mutations; suite 127 OK | — | [[genai-log-m2]], [[evidence-m2]] |
+| 2026-10-11 | M2 | Claude Opus 5.5 | L2 | `runner/cli.py` --order/--shuffles/--seed, summary lines + tests; W14 docs, claim E15 (ADR-008 Task 3) | Code, tests and docs from the ADR-008 plan | *add your edits after review* | Tests failed first; real F4/N3 reports; mutation; suite 137 OK | "given order" wording corrected to "discovered" | [[genai-log-m2]], [[evidence-m2]] |
 
 ## Prompt journal — significant interactions only
 

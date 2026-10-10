@@ -19,7 +19,7 @@ post-defence action plan's two-student split is superseded by the three-member s
 | Member | Current task | Branch | State | Blocked by |
 | --- | --- | --- | --- | --- |
 | 1 | Static-field + system-property extraction for F1/F2 | `m1/adr006-deepen` | W8 complete: Phases 2–6 and ADR-006 (depth 1–5, pair-mode auto-deepening; fastjson FJ-01/FJ-02 at `depth_used` 4/5); report chapters next | M2 and M3 switch their calls to `analyse_pair` |
-| 2 | ADR-008: NOT_REPRODUCED reports, `--order`, valid shuffled orders (design) | `m2/adr-008-not-reproduced` | W6-W10 and panel actions A1/A3/A4/A7 merged (#26-#41); ADR-008 proposed, needs M3 (schema, fixtures F4/N3) | M3 agreement |
+| 2 | ADR-008 runner side (`--order`, shuffled orders, NOT_REPRODUCED reports) | `m2/adr-008-runner` | Built and run: F4 `VERIFIED` via a shuffle, N3 `NOT_REPRODUCED` report; final review then PR | — |
 | 3 | ADR-008 implemented (NOT_REPRODUCED handling, new fixture cases F4/N3); report ch. 4 and 7–8 per `08-MidEval/README`'s Form 3 table next | `main` | Phases 0–5 done; real `VERIFIED`/`UNRESOLVED` reports produced for F1, F2, F3 (via M2's W10), N1, N2; N3 confirmed `NOT_REPRODUCED` pending M2's `diagnose()` change; F4 confirmed by hand pending M2's order search (see `docs/evidence-m3.md`) | Report chapters need a refresh against current state; worksheet and tag (W12) not started |
 
 ## Evidence files per member

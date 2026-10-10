@@ -12,7 +12,7 @@ from unittest import mock
 
 from eval.baseline import FailureSignature, TestIdentifier
 from eval.report import assemble_report
-from runner.cli import combine_fields, main, resource_fields, summary
+from runner.cli import OrderFileError, combine_fields, main, read_order, resource_fields, summary
 from runner.diagnose import (NO_SINGLE_POLLUTER, POLLUTER_FOUND, VICTIM_FAILS_ALONE, DiagnoseInputError,
                              DiagnosisRuns)
 from runner.integrity import SourceIntegrity
@@ -204,6 +204,47 @@ class TestCombineFields(unittest.TestCase):
                       fields["limitations"])
 
 
+class TestOrderFile(unittest.TestCase):
+    def write(self, text, encoding="utf-8"):
+        path = Path(tempfile.mkdtemp(prefix="flaketrace-order-")) / "order.txt"
+        path.write_bytes(text.encode(encoding))
+        return path
+
+    def test_order_file_with_bom_crlf_and_spaces_is_read(self):
+        path = self.write("\ufeff# CI order\r\npkg.PolluterTest#p  \r\n\r\npkg.VictimTest#v\r\n")
+        self.assertEqual(read_order(path, V), [P, V])
+
+    def test_bad_order_files_are_refused(self):
+        for text in ("", "# only a comment\n", "pkg.PolluterTest\npkg.VictimTest#v\n",
+                     "pkg.PolluterTest#p\npkg.PolluterTest#p\npkg.VictimTest#v\n", "pkg.PolluterTest#p\n"):
+            with self.assertRaises(OrderFileError, msg=text):
+                read_order(self.write(text), V)
+
+    def test_missing_order_file_exits_2_before_maven(self):
+        with mock.patch("runner.cli.diagnose") as diagnose:
+            code, _, err = run_cli(["diagnose", "--project", str(project_with_pom()), "--victim", str(V),
+                                    "--order", "no/such/order.txt"])
+        self.assertEqual(code, 2)
+        self.assertIn("order", err)
+        diagnose.assert_not_called()
+
+    def test_negative_shuffles_exits_2(self):
+        with mock.patch("runner.cli.diagnose") as diagnose:
+            code, _, err = run_cli(["diagnose", "--project", str(project_with_pom()), "--victim", str(V),
+                                    "--shuffles", "-1"])
+        self.assertEqual(code, 2)
+        diagnose.assert_not_called()
+
+    def test_options_reach_diagnose(self):
+        order = self.write("pkg.PolluterTest#p\npkg.VictimTest#v\n")
+        records = Path(tempfile.mkdtemp())
+        with mock.patch("runner.cli.diagnose", return_value=runs(VICTIM_FAILS_ALONE, records / "r.jsonl")) as diagnose:
+            run_cli(["diagnose", "--project", str(project_with_pom()), "--victim", str(V),
+                     "--order", str(order), "--shuffles", "7", "--seed", "3"])
+        kwargs = diagnose.call_args.kwargs
+        self.assertEqual((kwargs["original_order"], kwargs["shuffles"], kwargs["seed"]), ([P, V], 7, 3))
+
+
 class TestReports(unittest.TestCase):
     def test_victim_fails_alone_writes_a_report_and_skips_the_extractor(self):
         records = Path(tempfile.mkdtemp(prefix="flaketrace-cli-records-"))
@@ -245,6 +286,35 @@ class TestReports(unittest.TestCase):
                 mock.patch("runner.cli.resource_fields", return_value=combine_fields([pair(P, "pkg.T#a")])):
             _, out, _ = run_cli(["diagnose", "--project", str(project_with_pom()), "--victim", str(V)])
         self.assertNotIn("minimised:", out)
+
+    def test_summary_names_the_reproducing_shuffle(self):
+        report = dict(self.report_with_resource(), order_exploration={
+            "order_given": False, "shuffled_orders_tried": 9, "orders_exhausted": False,
+            "seed_base": 0, "reproducing_seed": 17})
+        self.assertIn("  orders:     reproduced in shuffled order (seed 17) after 9 shuffled orders",
+                      summary(report, Path("r.report.json")).splitlines())
+
+    def test_summary_of_not_reproduced_states_the_bound_and_not_proof(self):
+        report = dict(self.report_with_resource(), polluters=[], shared_resource=None, outcome="UNRESOLVED",
+                      unresolved_reason="NOT_REPRODUCED",
+                      reproduction={"successes": 0, "n": 20, "lower": 0.0, "upper": 0.161},
+                      victim_alone={"successes": 0, "n": 20},
+                      order_exploration={"order_given": True, "shuffled_orders_tried": 31,
+                                         "orders_exhausted": False, "seed_base": 0, "reproducing_seed": None})
+        text = summary(report, Path("r.report.json")).splitlines()
+        self.assertIn("  orders:     given order 20x, 31 distinct shuffled orders, alone 20x: never failed", text)
+        self.assertIn("  bound:      failure rate in the given order < 0.161 (95% Wilson), not proof of reliability", text)
+
+    def test_summary_says_discovered_order_when_no_order_was_given(self):
+        report = dict(self.report_with_resource(), polluters=[], shared_resource=None, outcome="UNRESOLVED",
+                      unresolved_reason="NOT_REPRODUCED",
+                      reproduction={"successes": 0, "n": 20, "lower": 0.0, "upper": 0.161},
+                      victim_alone={"successes": 0, "n": 20},
+                      order_exploration={"order_given": False, "shuffled_orders_tried": 31,
+                                         "orders_exhausted": False, "seed_base": 0, "reproducing_seed": None})
+        text = summary(report, Path("r.report.json")).splitlines()
+        self.assertIn("  orders:     discovered order 20x, 31 distinct shuffled orders, alone 20x: never failed", text)
+        self.assertIn("  bound:      failure rate in the discovered order < 0.161 (95% Wilson), not proof of reliability", text)
 
     def test_summary_shows_the_resource_and_both_locations(self):
         report = self.report_with_resource()
@@ -346,6 +416,22 @@ class TestCliOnFixture(unittest.TestCase):
         self.assertIn("polluter:   odfixture.ToggleAPolluterTest#setFlagA, odfixture.ToggleBPolluterTest#setFlagB", out)
         earlier = len(report["original_failing_order"]) - 1  # from the real order, not the fixture's size today
         self.assertIn(f"minimised:  {earlier} earlier tests -> 2 polluters in", out)
+
+    def test_f4_verified_through_a_shuffled_order(self):
+        code, out, err, report = self.diagnose("odfixture.AlwaysEarlyVictimTest#expectsLateFlagUnset", 20)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(report["outcome"], "VERIFIED")
+        self.assertIsNotNone(report["order_exploration"]["reproducing_seed"])
+        self.assertIn("reproduced in shuffled order (seed", out)
+
+    def test_n3_not_reproduced_report(self):
+        code, out, err, report = self.diagnose("odfixture.EnvDependentNegativeTest#onlyFailsUnderCI", 5)
+        self.assertEqual(code, 0, err)
+        self.assertEqual((report["outcome"], report["unresolved_reason"]), ("UNRESOLVED", "NOT_REPRODUCED"))
+        self.assertIsNone(report["failure_signature"])
+        self.assertEqual(report["order_exploration"]["shuffled_orders_tried"], 31)
+        self.assertIn("not proof of reliability", out)
+        self.assertIn("discovered order", out)
 
     def test_n1_fails_alone(self):
         code, _, err, report = self.diagnose("odfixture.NegativeAloneFailTest#alwaysFails", 5)

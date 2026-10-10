@@ -695,3 +695,35 @@ orders; always run the victim alone; give Member 3's `eval/report.py` the fields
 - Mutation checks: shuffle phase skipped → the fake shuffle test and real F4 FAILED; duplicate orders
   counted → `test_small_suite_is_exhausted_honestly` FAILED; both restored from copies.
 - Full runner suite: `Ran 127 tests in 293.984s — OK`.
+
+### 2026-10-11 — ADR-008 Task 3: the command — `--order`, `--shuffles`, `--seed`; F4 and N3 reports
+
+**Requirement:** ADR-008 § Command — the real failing order from a file, the shuffle budget and seed,
+summary lines, and real reports for F4 and N3 through the command.
+- File: `runner/cli.py` — `read_order` / `OrderFileError` (BOM, CRLF, comments allowed; bad line,
+  duplicate, missing victim → exit 2), the three options, `orders:`/`bound:` summary lines.
+- Tests first: `ImportError: cannot import name 'OrderFileError'`; after → fast CLI tests OK. While
+  checking N3's real output, the summary said "given order" although no order was given — a new test
+  (`test_summary_says_discovered_order_when_no_order_was_given`) FAILED, then the wording uses
+  "discovered" unless `--order` was used → OK.
+- Mutation check: the "victim must be in the file" check removed → `test_bad_order_files_are_refused`
+  FAILED (`OrderFileError not raised`); restored.
+- By hand (local Windows, JDK 21.0.9), exit 0 both:
+
+```
+VERIFIED  odfixture.AlwaysEarlyVictimTest#expectsLateFlagUnset
+  polluter:   odfixture.ZzzLatePolluterTest#setLateFlag
+  orders:     reproduced in shuffled order (seed 1) after 2 shuffled orders
+  resource:   static-field odfixture.LateFlag isSet (write odfixture.ZzzLatePolluterTest#setLateFlag@1 -> read odfixture.AlwaysEarlyVictimTest#expectsLateFlagUnset@0)
+  reproduced: 20/20 (lower bound 0.839)   alone: 0/20
+
+UNRESOLVED (NOT_REPRODUCED)  odfixture.EnvDependentNegativeTest#onlyFailsUnderCI
+  orders:     discovered order 20x, 31 distinct shuffled orders, alone 20x: never failed
+  bound:      failure rate in the discovered order < 0.161 (95% Wilson), not proof of reliability
+  reproduced: 0/20 (lower bound 0.000)   alone: 0/20
+```
+
+  (The N3 lines above are from the run after the wording fix; the first run printed "given order".)
+- Full runner suite: `Ran 137 tests in 337.792s — OK`.
+- For Member 3: the report's own `limitations` text from `assemble_report` says "runs of the given
+  order" even without `--order`; `DiagnosisRuns.order_given` now tells which. Not edited (eval/ is M3's).

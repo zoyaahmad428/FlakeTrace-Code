@@ -652,3 +652,18 @@ and N3 runs.
 **How it was verified:** two mutation checks failed the right tests; full suite 127 OK.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 3: command options and F4/N3 reports
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 3 of the ADR-008 runner-side plan.
+
+**What was retained:** `read_order`, `--order/--shuffles/--seed`, the summary lines, 11 tests (incl.
+real F4 and N3 through the command); docs, demo plan step 6b, W14, claim E15 (OPEN until CI).
+
+**What was wrong:** (1) the summary said "given order" when the order was discovered — caught by
+reading the real N3 output, fixed test-first; (2) a generated test contained a real BOM character
+instead of the `\ufeff` escape — replaced with the visible escape.
+
+**What I changed:** *fill after reading the diff.*

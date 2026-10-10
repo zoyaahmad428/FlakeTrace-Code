@@ -65,3 +65,13 @@ in-process and decides nothing itself:
   test. Never catch a broad `ValueError`/`RuntimeError`: internal bugs would look like user errors.
 - Tests: `py -m unittest -v runner.tests.test_cli` — 15 fast tests (no JVM) and 5 real runs on the
   fixture (skipped without JDK/Maven unless `FLAKETRACE_REQUIRE_JVM` is set).
+
+## ADR-008 additions (2026-10-11)
+
+- `--order <file>` (the real failing order), `--shuffles N` (default 31), `--seed S` (default 0). A bad
+  `--order` file, a duplicate, a missing victim or a test the project does not have → exit 2.
+- When the starting order never fails, the diagnosis tries distinct class-first shuffled orders; the
+  summary names the reproducing seed (`orders: reproduced in shuffled order (seed 1) after 2 …`).
+- `NOT_REPRODUCED` is now a report (exit 0) with `failure_signature: null`, `order_exploration`, and the
+  summary lines `orders:` (which order — "given" only with `--order`, else "discovered") and `bound:`
+  (Wilson upper bound, "not proof of reliability").

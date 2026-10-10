@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from eval.baseline import TestIdentifier
 from eval.report import UnhandledStatus, assemble_report
@@ -37,20 +37,37 @@ def main(argv=None) -> int:
     command.add_argument("--n", type=int, default=20, help="repeat count (default 20)")
     command.add_argument("--records", default="flaketrace-records",
                          help="folder for the execution record and the report")
+    command.add_argument("--order", default=None,
+                         help="file with the real failing order, one Class#method per line (ADR-008)")
+    command.add_argument("--shuffles", type=int, default=31,
+                         help="distinct shuffled orders to try if the order never fails (default 31)")
+    command.add_argument("--seed", type=int, default=0, help="first shuffle seed (default 0)")
     args = parser.parse_args(argv)
-    return run_diagnose(Path(args.project), args.victim, args.n, args.records)
+    return run_diagnose(Path(args.project), args.victim, args.n, args.records,
+                        Path(args.order) if args.order else None, args.shuffles, args.seed)
 
 
-def run_diagnose(project: Path, victim_id: str, n: int, records: str) -> int:
+def run_diagnose(project: Path, victim_id: str, n: int, records: str, order_path: Optional[Path] = None,
+                 shuffles: int = 31, seed: int = 0) -> int:
     # Java names only: the victim also becomes part of the record's file name.
     if not _VICTIM.fullmatch(victim_id):
         return _error(f"--victim must be Class#method (Java names, no spaces), got {victim_id!r}", 2)
     class_name, _, method = victim_id.partition("#")
     if not (project / "pom.xml").is_file():
         return _error(f"no pom.xml in {project}; --project must be a Maven project folder", 2)
+    if shuffles < 0:
+        return _error(f"--shuffles must be >= 0, got {shuffles}", 2)
+    victim = TestIdentifier(class_name, method)
+    order = None
+    if order_path is not None:
+        try:
+            order = read_order(order_path, victim)
+        except OrderFileError as error:
+            return _error(str(error), 2)
 
     try:
-        runs = diagnose(project, TestIdentifier(class_name, method), n=n, record_dir=records)
+        runs = diagnose(project, victim, n=n, record_dir=records, original_order=order,
+                        shuffles=shuffles, seed=seed)
     except DiagnoseInputError as error:
         return _error(str(error), 2)
     except subprocess.CalledProcessError as error:
@@ -132,6 +149,19 @@ def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]
         count = len(report["polluters"])
         lines.append(f"  minimised:  {earlier} earlier tests -> {count} polluter{'s' if count != 1 else ''} "
                      f"in {runs} runs (1-minimal, not necessarily the minimum)")
+    explored = report.get("order_exploration")
+    if explored and explored["reproducing_seed"] is not None:
+        lines.append(f"  orders:     reproduced in shuffled order (seed {explored['reproducing_seed']}) "
+                     f"after {explored['shuffled_orders_tried']} shuffled orders")
+    if report["unresolved_reason"] == "NOT_REPRODUCED" and explored:
+        exhausted = " (all possible)" if explored["orders_exhausted"] else ""
+        # "given" only for an order from --order; otherwise FlakeTrace discovered it.
+        source = "given" if explored["order_given"] else "discovered"
+        lines.append(f"  orders:     {source} order {report['reproduction']['n']}x, "
+                     f"{explored['shuffled_orders_tried']} distinct shuffled orders{exhausted}, "
+                     f"alone {report['victim_alone']['n']}x: never failed")
+        lines.append(f"  bound:      failure rate in the {source} order < {report['reproduction']['upper']:.3f} "
+                     "(95% Wilson), not proof of reliability")
     if report["shared_resource"]:
         resource = " ".join(str(value) for value in report["shared_resource"].values())
         write, read = report["polluter_write_location"], report["victim_read_location"]
@@ -145,6 +175,35 @@ def summary(report: dict, report_path: Path, minimised: Optional[Tuple[int, int]
     lines.append(f"  report:     {report_path}")
     lines.append(f"  record:     {report['execution_record_reference']}")
     return "\n".join(lines)
+
+
+class OrderFileError(Exception):
+    """A problem with the --order file (exit 2)."""
+
+
+def read_order(path: Path, victim: TestIdentifier) -> List[TestIdentifier]:
+    """One Class#method per line; blank and # lines ignored; BOM and CRLF allowed (ADR-008)."""
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError as error:
+        raise OrderFileError(f"cannot read --order file {path}: {error.strerror}")
+    order: List[TestIdentifier] = []
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if not _VICTIM.fullmatch(line):
+            raise OrderFileError(f"--order line {number} is not Class#method: {line!r}")
+        class_name, _, method = line.partition("#")
+        test = TestIdentifier(class_name, method)
+        if test in order:
+            raise OrderFileError(f"--order lists {test} twice (line {number})")
+        order.append(test)
+    if not order:
+        raise OrderFileError(f"--order file {path} lists no tests")
+    if victim not in order:
+        raise OrderFileError(f"--order does not contain the victim {victim}")
+    return order
 
 
 def _test(location: dict) -> str:
