@@ -1110,3 +1110,38 @@ them yet, omitted entirely (schema allows it) until that lands.
   member. Confirmed clean afterward: `git diff origin/main -- <each of the 8 files>` shows
   zero difference on the 7 untouched files and only this session's genuine new content on
   the 8th (`ground_truth.json`).
+
+## 2026-10-10 — Fix a real merge-order risk Member 2 found in PR #45
+
+**Requirement:** Member 2 reviewed PR #45 (ADR-008's M3 side) and flagged a real risk: today,
+`runner.diagnose()` still returns `NOT_REPRODUCED` with `alone_n = 0` (ADR-008 step 4, their
+diagnose() change making it always run the alone check, hasn't landed yet). Calling
+`assemble_report` on that real shape hits `eval.outcome.DecisionInput`'s `isolation_n > 0`
+check, raising a bare `ValueError` the CLI does not catch — crashing with a traceback instead
+of the designed "exit 3, no report yet" behaviour, regardless of which of the two changes
+(theirs or mine) merges first.
+
+- File/function: `eval/report.py` — `assemble_report` now raises `UnhandledStatus` explicitly
+  when `diagnosis.status == NOT_REPRODUCED and diagnosis.alone_n == 0`, before building
+  `DecisionInput` at all. Once Member 2's `diagnose()` change lands (`alone_n > 0` always),
+  this branch is simply never reached and the real report-building path runs unchanged.
+- File/function: `eval/tests/test_report.py` — renamed/updated
+  `test_not_reproduced_with_todays_real_shape_is_unhandled_not_a_crash` to assert
+  `UnhandledStatus` (was `ValueError`).
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 80/80 passed.
+- Mutation check: disabled the new guard (`if False:`) — the test failed with the exact real
+  `ValueError: isolation_n must be > 0, got 0` traceback Member 2 described; restored,
+  confirmed `git diff` clean.
+- Also asked by Member 2: comment agreement on ADR-008's PR (#42) or tick M3's row there.
+  Not done directly — I have no GitHub write access in this environment; drafted a comment for
+  the member to post, and will tick the actual ADR file in a follow-up PR once #42 merges
+  (same pattern as ADR-006/007).
+- **Still open, found independently, not yet mentioned by Member 2**: PR #45's real CI `runner`
+  job is failing for a different, real reason — three hardcoded counts in `runner/tests/`
+  (M2's folder) are now stale because this PR's new F4/N3 fixture classes changed the
+  fixture's real discovered-order size (13 → 16 methods) and F3's search prefix (12 → 14).
+  Reproduced locally: `test_discovery.TestDiscoveryOnFixture.test_all_thirteen_fixture_methods_in_alphabetical_class_order`,
+  `test_diagnose.TestDiagnoseOnFixture.test_f3_two_polluters_are_found_by_minimisation`, and
+  `test_cli.TestCliOnFixture.test_f3_two_polluters_verified` all fail on the new real counts.
+  Not fixed here — `runner/tests/` is not my folder; flagged to the member to relay or to
+  approve me fixing the three numbers directly.

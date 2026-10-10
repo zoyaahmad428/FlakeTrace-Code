@@ -196,18 +196,20 @@ class TestAssembleReport(unittest.TestCase):
         self.assertIsNone(report["shared_resource"])
         self.assertEqual(report["unresolved_reason"], "VICTIM_FAILS_ALONE")
 
-    def test_not_reproduced_with_todays_real_shape_raises_valueerror(self):
+    def test_not_reproduced_with_todays_real_shape_is_unhandled_not_a_crash(self):
         """Today, runner.diagnose() short-circuits before running the isolation check when
         nothing reproduces at all, so a REAL NOT_REPRODUCED diagnosis has alone_n=0.
-        eval.outcome.DecisionInput rejects that (isolation_n must be > 0) -- a real, loud
-        failure, not silently handled, until Member 2's diagnose() always runs the alone
-        check (ADR-008)."""
+        eval.outcome.DecisionInput would reject that outright (isolation_n must be > 0) as a
+        bare ValueError, which the CLI does not catch -- so assemble_report raises
+        UnhandledStatus for this specific case instead, keeping the CLI's "exit 3, no report
+        yet" behaviour safe regardless of which of this module's or Member 2's diagnose()
+        change merges first (flagged by Member 2, see docs/evidence-m3.md)."""
         diagnosis = _diagnosis(
             NOT_REPRODUCED, polluters=[], sequence=[POLLUTER, VICTIM], reference_signature=None,
             sequence_n=5, sequence_successes=0, sequence_any_failures=0,
             alone_n=0, alone_successes=0,
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(UnhandledStatus):
             assemble_report(diagnosis)
 
     def test_not_reproduced_with_isolation_data_gives_unresolved(self):

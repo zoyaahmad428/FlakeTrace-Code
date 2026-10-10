@@ -41,6 +41,13 @@ which is also exactly when `decide()` can land on the new INFRASTRUCTURE_FAILURE
 underlying DiagnosisRuns.status, same None reference), so both reasons share this handling.
 Tested here with hand-built DiagnosisRuns objects (this project's established convention for
 code whose real dependency hasn't landed yet) ahead of Member 2's diagnose() change.
+
+Until that diagnose() change actually lands, a REAL NOT_REPRODUCED diagnosis still has
+alone_n == 0 today -- assemble_report raises UnhandledStatus for that specific case (status
+NOT_REPRODUCED and alone_n == 0), not the bare ValueError DecisionInput would otherwise raise,
+so either merge order (M2's diagnose() change landing before or after this module's) leaves
+the CLI's "exit 3, no report yet" behaviour intact rather than an uncaught traceback. Flagged
+by Member 2 while reviewing this branch; see docs/evidence-m3.md.
 """
 
 from typing import Optional
@@ -88,6 +95,20 @@ def assemble_report(
         raise UnhandledStatus(
             f"assemble_report does not yet handle DiagnosisRuns.status={diagnosis.status!r}; "
             "see eval/report.py's module docstring"
+        )
+    if diagnosis.status == NOT_REPRODUCED and diagnosis.alone_n == 0:
+        # Safe for either merge order (flagged by Member 2): today's real runner.diagnose()
+        # still short-circuits before running the alone check for NOT_REPRODUCED, so alone_n
+        # is 0 until ADR-008 step 4 lands. Without this guard, DecisionInput's isolation_n > 0
+        # check raises a bare ValueError here, which the CLI does not catch (ADR-005 keeps
+        # unexpected bugs loud) -- so the command would crash with a traceback instead of its
+        # designed "exit 3, no report yet" UX. Raising UnhandledStatus instead keeps that UX
+        # working right up until runner.diagnose() actually starts providing alone_n > 0, at
+        # which point this branch is simply never reached.
+        raise UnhandledStatus(
+            "assemble_report cannot yet build a NOT_REPRODUCED report: alone_n is 0, meaning "
+            "runner.diagnose() has not started running the alone check for this status yet "
+            "(ADR-008 step 4, not landed). See eval/report.py's module docstring."
         )
     fields = resource_fields if diagnosis.status == POLLUTER_FOUND else None
     edge_found = bool(fields and fields["shared_resource"] is not None)

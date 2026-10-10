@@ -776,6 +776,42 @@ Ownership checkpoint: be able to explain why `assemble_report` branches on
 for whether to null out `failure_signature` — the former is the actual real-world invariant
 (`runner.diagnose` guarantees it), the latter would have been coincidentally correct today but
 fragile if a future status ever paired a real reference with one of these two reasons. Also be
-ready to explain, without AI, why today's real `diagnose()` output for N3 still raises
-`ValueError` rather than producing a report — that gap closes only once Member 2's `diagnose()`
-always runs the alone check, not by anything in this module.
+ready to explain, without AI, why today's real `diagnose()` output for N3 now raises
+`UnhandledStatus` (not `ValueError` any more, after the fix below) rather than producing a
+report — that gap closes only once Member 2's `diagnose()` always runs the alone check, not by
+anything in this module.
+
+## 2026-10-10 — Fix the merge-order risk Member 2 found, then flag a separate real CI failure
+
+**What I asked:** Relayed message from Member 2, reviewing PR #45: a real risk (bare
+`ValueError` instead of a clean `UnhandledStatus`/exit-3 path for today's real `NOT_REPRODUCED`
+shape) plus a request to comment/tick agreement on PR #42 (the ADR-008 proposal itself).
+
+**What was retained:** The fix exactly as specified — add the guard, add a test, keep both
+merge orders safe. I did not relitigate the design; Member 2's diagnosis of the risk was
+correct and the fix they described was the right one.
+
+**What I changed:** The existing test `test_not_reproduced_with_todays_real_shape_raises_valueerror`
+had to change its own expectation (now `UnhandledStatus`, not `ValueError`) and its name, since
+the behaviour it was pinning is exactly what this fix changes. Also corrected a now-stale line
+in my own previous session's "ownership checkpoint" note (it said N3 "raises ValueError,"
+which stopped being true the moment this fix landed).
+
+**How it was verified:** `py -m unittest discover -s eval/tests -v` → 80/80 passed. Mutation
+check: disabled the new guard, got the exact real `ValueError: isolation_n must be > 0, got 0`
+traceback Member 2 described; restored.
+
+**Errors found:** Separately, while re-checking PR #45's own CI (not something Member 2
+mentioned): the `runner` job is actually failing, for a different and unrelated reason — three
+hardcoded counts in `runner/tests/` are stale because this PR's new F4/N3 fixture classes
+changed the real discovered-order size and F3's search prefix. Reproduced locally
+(`py -m unittest discover -s runner/tests -v`). Not fixed here: `runner/tests/` is Member 2's
+folder, not mine — flagged to the member rather than edited.
+
+**Rejections:** None from the member this session.
+
+Ownership checkpoint: be able to explain why this guard checks `alone_n == 0` specifically
+(not just `diagnosis.status == NOT_REPRODUCED`) — the status alone isn't the problem;
+`DecisionInput` only objects when the isolation count is actually missing, so the guard should
+stop being reachable the moment Member 2's `diagnose()` starts providing it, without needing
+another code change here.
