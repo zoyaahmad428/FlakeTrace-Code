@@ -622,3 +622,19 @@ modified files proved the edits were intact). (3) Restoring `runner/discovery.py
 LF endings; content was identical (empty diff) and the CRLF endings were put back.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 1: shuffled orders
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 1 of `docs/superpowers/plans/2026-10-11-adr-008-runner-side.md`.
+
+**What was retained:** `runner/orders.py` and 9 tests as planned.
+
+**What was wrong:** one planned test sorted `TestIdentifier` tuples (a `TypeError`); fixed to a set
+comparison with the same meaning (ruling in the plan ledger).
+
+**How it was verified:** tests failed first; flat shuffling made the class-grouping test fail; full suite
+117 OK.
+
+**What I changed:** *fill after reading the diff.*

@@ -660,3 +660,18 @@ fixture test classes (F4, N3). Three of our real-run tests hardcoded counts from
   the code under test and failed only on an empty set — rewritten to be independent.
 - Full runner suite: on our branch `Ran 108 tests in 240.907s — OK`; on M3's fixture with these tests
   `Ran 108 tests in 237.031s — OK`.
+
+### 2026-10-11 — ADR-008 Task 1: class-first shuffled orders
+
+**Requirement:** ADR-008 — valid shuffled orders (classes shuffled, then methods within each class,
+never interleaved), distinct orders only, honest exhaustion, and a search that stops at the first real
+failure.
+- Files: `runner/orders.py` (`class_first_shuffle`, `distinct_shuffles`, `search_orders`),
+  `runner/tests/test_orders.py` (9 tests, `FakeOrderRunner`).
+- Tests first: `py -m unittest runner.tests.test_orders` → `ModuleNotFoundError: No module named
+  'runner.orders'`. After the code: 8 passed, 1 error in the test itself (it sorted `TestIdentifier`
+  tuples, which are not orderable) — compared as a set plus a length check instead → `Ran 9 tests — OK`.
+- Mutation check: a flat shuffle (classes interleaved) → `test_methods_of_a_class_stay_together`
+  FAILED; restored from a copy → 9 OK.
+- Full runner suite: `Ran 117 tests in 249.541s — OK`.
+- Limitation: not wired into `diagnose()` yet (Task 2).
