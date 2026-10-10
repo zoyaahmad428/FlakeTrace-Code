@@ -20,6 +20,7 @@ verdict stays with M3's `decide()`, so the statistics and decision rules live in
 | `discovery.py` | Surefire-like class list; methods from JUnit (`FtHarness --list`) |
 | `search.py` | `reproduce` (reference signature), `find_polluter` (one-by-one) |
 | `minimise.py` | `ddmin` — when no single test is enough, shrinks the tests before the victim to a 1-minimal set (W10, ADR-007) |
+| `orders.py` | class-first shuffled orders when the starting order never fails; the first real failure becomes the failing order (ADR-008) |
 | `verify.py` | `repeat` ×n → matching and any-signature counts |
 | `diagnose.py` | `run_steps` (logic, testable with a fake runner) + `diagnose` (real wiring) |
 
@@ -46,9 +47,10 @@ verdict stays with M3's `decide()`, so the statistics and decision rules live in
 - **A rarely-failing flaky victim** can pass all `n` alone runs by chance and then fail during
   the search, giving a spurious polluter; the verify counts expose it (few matches of `n`), so
   `decide()` can at most say `CANDIDATE`.
-- **The victim never fails for real** → `NOT_REPRODUCED` with `alone_n = 0`; M3's `decide()`
-  rejects `isolation_n = 0`, so W9 must handle this status before calling it. If the original
-  order only crashed or timed out, those runs are counted in `sequence_any_failures`.
+- **The victim never fails for real in the starting order** → up to 31 distinct shuffled orders
+  (ADR-008; F4: reproduced by seed 1 after 2 orders). If none fails, the alone check still runs
+  (`alone_n = n`): a real alone failure gives `VICTIM_FAILS_ALONE`; nothing at all gives
+  `NOT_REPRODUCED` (N3) with every count, and crash-only runs are `infrastructure_failures`.
 - **`record_dir` inside the analysed project** → refused with `DiagnoseInputError` (a `ValueError`); a record written
   there would itself make the integrity check fail.
 - **Flaky victims**: N2 (fails ~50%, `Random.nextBoolean` since PR #14) ends `VICTIM_FAILS_ALONE`.

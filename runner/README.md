@@ -94,6 +94,7 @@ one; each has its own tests in `runner/tests/`.
 | `discovery.py` | `discover_order(runner, target/test-classes)`: classes matching Surefire's default includes (`Test*`, `*Test`, `*Tests`, `*TestCase`, no `$`), sorted by full name; methods from JUnit via `java FtHarness --list <file>` (stdin: class names; file: `Class#method` lines). Surefire's default `runOrder` is `filesystem` — pass an explicit order for such projects | done |
 | `search.py`, `verify.py` | `reproduce` — run the original order until the victim fails; that failure is the reference signature (a `flaketrace.*` crash/timeout/skip never is). `find_polluter` — `[candidate, victim]` once per earlier test, `priority` first; first match wins. `repeat` — n runs → (matching, any-signature) victim failures | done |
 | `minimise.py` | `ddmin(runner, prefix, victim, reference)` → 1-minimal subset of the tests before the victim and the runs used; only the reference failure counts, each subset runs at most once (W10, ADR-007) | done |
+| `orders.py` | When the starting order never fails for real: up to 31 distinct valid shuffled orders (classes shuffled, then methods within each class; never interleaved), one run each, seeds recorded; the first real failure becomes the failing order (ADR-008) | done |
 | `diagnose.py` | `diagnose(project, victim, n=20)` → `DiagnosisRuns` (raw counts, no verdict); `run_steps(runner, order, victim, n)` is the same logic on any runner | done |
 
 ```python
@@ -112,7 +113,7 @@ runs.source_integrity.passed, runs.execution_record   # flaketrace-records/<time
 | `POLLUTER_FOUND` | one earlier test makes the victim fail with the reference signature — or, when none does alone, `ddmin` found a 1-minimal set of earlier tests that does (F3) | `polluters + [victim]` |
 | `VICTIM_FAILS_ALONE` | the victim reproduced its failure with nothing before it — no polluter is blamed | `[victim]` (counts = alone counts) |
 | `NO_SINGLE_POLLUTER` | the victim is first in the order, so there is nothing before it to minimise (only with flakiness) | the original order |
-| `NOT_REPRODUCED` | the victim never failed with a real failure in `n` runs of the original order (crashes/timeouts are counted in `sequence_any_failures`); alone check not run (`alone_n = 0`) | the original order |
+| `NOT_REPRODUCED` | the victim never failed for real in `n` runs of the starting order, in up to 31 distinct class-first shuffled orders (ADR-008), or in `n` runs alone; crashes/timeouts are counted in `sequence_any_failures` and `infrastructure_failures` | the starting order |
 
 ## Command line (W9)
 

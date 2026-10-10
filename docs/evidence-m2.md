@@ -675,3 +675,23 @@ failure.
   FAILED; restored from a copy → 9 OK.
 - Full runner suite: `Ran 117 tests in 249.541s — OK`.
 - Limitation: not wired into `diagnose()` yet (Task 2).
+
+### 2026-10-11 — ADR-008 Task 2: shuffled orders in the diagnosis; alone check always
+
+**Requirement:** ADR-008 — when the starting order never fails for real, try up to 31 distinct shuffled
+orders; always run the victim alone; give Member 3's `eval/report.py` the fields it reads.
+- Files: `runner/diagnose.py` (shuffle phase, alone always, six `DiagnosisRuns` fields, given-order
+  checks, header fields `order_given`/`shuffles`/`seed_base`), `runner/verify.py`
+  (`repeat_without_reference`), `runner/recording.py` (`note`, used for the seed on shuffle lines).
+- Tests first (`test_recording.py`, `test_diagnose.py`): `py -m unittest runner.tests.test_recording
+  runner.tests.test_diagnose.TestRunSteps` → `FAILED (failures=1, errors=9)` (`unexpected keyword
+  argument 'shuffles'`, `KeyError: 'seed'`, no `infrastructure_failures`, alone counts `(0, 0, 0)`).
+  After → `Ran 33 tests — OK` (with `test_orders`).
+- Real runs (local Windows, JDK 21.0.9, `diagnose(..., n=5)`):
+  **F4** (`AlwaysEarlyVictimTest#expectsLateFlagUnset`) → `POLLUTER_FOUND`, polluter
+  `ZzzLatePolluterTest#setLateFlag` (= ground truth), reproduced by **seed 1 after 2 shuffled orders**,
+  5/5, alone 0/5, 18 s. **N3** (`EnvDependentNegativeTest#onlyFailsUnderCI`) → `NOT_REPRODUCED`,
+  31 distinct shuffled orders (not exhausted), 0/5 in its order, 0/5 alone, no infrastructure failures, 30 s.
+- Mutation checks: shuffle phase skipped → the fake shuffle test and real F4 FAILED; duplicate orders
+  counted → `test_small_suite_is_exhausted_honestly` FAILED; both restored from copies.
+- Full runner suite: `Ran 127 tests in 293.984s — OK`.

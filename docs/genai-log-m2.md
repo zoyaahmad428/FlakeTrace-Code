@@ -638,3 +638,17 @@ comparison with the same meaning (ruling in the plan ledger).
 117 OK.
 
 **What I changed:** *fill after reading the diff.*
+
+## 2026-10-11 — ADR-008 Task 2: diagnosis tries shuffled orders
+
+**Tool:** Claude Opus 5.5 · **Level:** L2
+
+**What was asked:** Task 2 of the ADR-008 runner-side plan.
+
+**What was retained:** the shuffle phase, the always-run alone check, the six fields Member 3's report
+code reads, given-order validation, seeds in the execution record; 10 tests that failed first; real F4
+and N3 runs.
+
+**How it was verified:** two mutation checks failed the right tests; full suite 127 OK.
+
+**What I changed:** *fill after reading the diff.*

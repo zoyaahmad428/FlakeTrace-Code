@@ -96,14 +96,67 @@ class TestRunSteps(unittest.TestCase):
         runs = run_steps(victim_fails_when(lambda order: B in order), [A, B, V], V, n=2)
         self.assertEqual(runs.minimise_runs, 0)
 
-    def test_never_failing_is_not_reproduced_and_runs_nothing_else(self):
+    def test_never_failing_without_shuffles_runs_reproduce_and_alone_only(self):
         runner = victim_fails_when(lambda order: False)
         runs = run_steps(runner, [A, V], V, n=3)
         self.assertEqual(runs.status, NOT_REPRODUCED)
         self.assertIsNone(runs.reference_signature)
         self.assertEqual((runs.sequence, runs.sequence_n, runs.sequence_successes), ([A, V], 3, 0))
-        self.assertEqual((runs.alone_n, runs.alone_successes, runs.search_runs), (0, 0, 0))
-        self.assertEqual(len(runner.calls), 3)
+        self.assertEqual((runs.alone_n, runs.alone_successes, runs.search_runs), (3, 0, 0))
+        self.assertEqual(len(runner.calls), 3 + 3)
+
+    def test_shuffle_finds_an_order_the_starting_order_could_not(self):
+        # Victim fails only when LATER ran before it; the starting order puts LATER after it.
+        runner = victim_fails_when(lambda order: LATER in order[: order.index(V)])
+        runs = run_steps(runner, [A, V, LATER], V, n=2, shuffles=31)
+        self.assertEqual(runs.status, POLLUTER_FOUND)
+        self.assertEqual(runs.polluters, [LATER])
+        self.assertIsNotNone(runs.reproducing_seed)
+        self.assertEqual(runs.original_order[-1], V)
+        self.assertIn(LATER, runs.original_order)
+        self.assertGreater(runs.shuffled_orders, 0)
+
+    def test_nothing_fails_anywhere_is_not_reproduced_with_all_counts(self):
+        runs = run_steps(victim_fails_when(lambda order: False), [A, B, V], V, n=3, shuffles=31)
+        self.assertEqual(runs.status, NOT_REPRODUCED)
+        self.assertIsNone(runs.reference_signature)
+        self.assertEqual((runs.sequence_n, runs.alone_n, runs.alone_successes), (3, 3, 0))
+        # Cut orders of three one-method classes: [V], [A,V], [B,V], [A,B,V], [B,A,V] — 5 in total.
+        self.assertEqual(runs.shuffled_orders, 5)
+        self.assertTrue(runs.orders_exhausted)
+
+    def test_failing_alone_without_a_reference_is_victim_fails_alone(self):
+        runner = FakeOrderRunner(lambda order, test: FAIL if test == V and order == [V] else PASS)
+        runs = run_steps(runner, [A, V], V, n=3, shuffles=0)
+        self.assertEqual(runs.status, VICTIM_FAILS_ALONE)
+        self.assertEqual(runs.reference_signature, REF)
+        self.assertEqual((runs.alone_n, runs.alone_successes), (3, 3))
+
+    def test_crash_only_not_reproduced_counts_infrastructure_failures(self):
+        crash = RunOutcome(passed=False, failure_signature=FailureSignature("flaketrace.JvmCrash", "", "code 1"))
+        runner = FakeOrderRunner(lambda order, test: crash if test == V and order != [V] else PASS)
+        runs = run_steps(runner, [A, V], V, n=3, shuffles=0)
+        self.assertEqual(runs.status, NOT_REPRODUCED)
+        self.assertEqual((runs.sequence_any_failures, runs.infrastructure_failures), (3, 3))
+
+    def test_zero_shuffles_skips_the_phase(self):
+        runner = victim_fails_when(lambda order: False)
+        runs = run_steps(runner, [A, B, V], V, n=2, shuffles=0)
+        self.assertEqual((runs.status, runs.shuffled_orders), (NOT_REPRODUCED, 0))
+        self.assertEqual(len(runner.calls), 2 + 2)
+
+    def test_shuffle_runs_record_their_seed(self):
+        record = Path(tempfile.mkdtemp(prefix="flaketrace-rec-")) / "r.jsonl"
+        runner = RecordingRunner(victim_fails_when(lambda order: False), record, {})
+        run_steps(runner, [A, B, V], V, n=1, shuffles=5, seed_base=40)
+        lines = [json.loads(l) for l in record.read_text(encoding="utf-8").splitlines()[1:]]
+        shuffles = [l for l in lines if l["step"] == "shuffle"]
+        self.assertTrue(shuffles and all(isinstance(l["seed"], int) and l["seed"] >= 40 for l in shuffles))
+        self.assertTrue(all("seed" not in l for l in lines if l["step"] != "shuffle"))
+
+    def test_given_order_with_a_duplicate_is_refused_before_maven_runs(self):
+        with self.assertRaises(DiagnoseInputError):
+            diagnose(Path("does-not-exist"), V, original_order=[A, A, V])
 
     def test_bad_input_is_rejected_before_any_run(self):
         runner = victim_fails_when(lambda order: True)
@@ -142,6 +195,7 @@ class TestRunSteps(unittest.TestCase):
         runs = run_steps(runner, [A, V], V, n=3)
         self.assertEqual(runs.status, NOT_REPRODUCED)
         self.assertEqual((runs.sequence_n, runs.sequence_successes, runs.sequence_any_failures), (3, 0, 3))
+        self.assertEqual(runs.infrastructure_failures, 3)
 
 
 class TestEnvironment(unittest.TestCase):
@@ -226,6 +280,20 @@ class TestDiagnoseOnFixture(unittest.TestCase):
         runs = self.diagnose_case("N1", n=20)
         self.assertEqual(runs.status, VICTIM_FAILS_ALONE)
         self.assertEqual((runs.alone_successes, runs.alone_n), (20, 20))
+
+    def test_f4_only_a_shuffled_order_reproduces(self):
+        runs = self.diagnose_case("F4", n=5)
+        self.assertEqual(runs.status, POLLUTER_FOUND)
+        self.assertEqual(runs.polluters, self.expected_polluters("F4"))
+        self.assertIsNotNone(runs.reproducing_seed)
+        self.assertEqual(runs.sequence_successes, 5)
+
+    def test_n3_is_not_reproduced_after_shuffles_and_alone(self):
+        runs = self.diagnose_case("N3", n=5)
+        self.assertEqual(runs.status, NOT_REPRODUCED)
+        self.assertEqual((runs.sequence_n, runs.alone_n, runs.alone_successes), (5, 5, 0))
+        self.assertEqual(runs.shuffled_orders, 31)
+        self.assertFalse(runs.orders_exhausted)
 
     def test_n2_intermittent_failure_fails_alone_and_blames_no_polluter(self):
         # N2 fails ~50% of runs (Random.nextBoolean, PR #14); 20 runs with no failure ~ 1e-6.

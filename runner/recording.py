@@ -17,6 +17,7 @@ class RecordingRunner:
         self._runner = runner
         self.path = Path(path)
         self.step = "unlabelled"
+        self.note: dict = {}  # extra fields for the next run lines, e.g. a shuffle seed (ADR-008)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._write({"type": "header", **header})
 
@@ -24,14 +25,16 @@ class RecordingRunner:
         started = datetime.now(timezone.utc).isoformat()
         clock = time.monotonic()
         results = self._runner.run_ordered(order)
-        self._write({
+        entry = {
             "type": "run",
             "step": self.step,
             "started": started,
             "seconds": round(time.monotonic() - clock, 3),
             "order": [str(test) for test in order],
             "outcomes": [_outcome(test, results[test]) for test in order],
-        })
+        }
+        entry.update(self.note)
+        self._write(entry)
         return results
 
     def _write(self, entry: dict) -> None:
