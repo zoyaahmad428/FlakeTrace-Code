@@ -640,3 +640,23 @@ commit and the OS were not.
   `docs/01-Literature/references.md`: [3] iDFlakies, [4] iFixFlakies, [5] Rahman et al., [12] Gruber et al.
   — **"An empirical study of flaky tests in Python"**, so the 31-order figure is a Python result; ADR-008
   labels its use for JUnit an assumption.
+
+### 2026-10-11 — Runner tests no longer hardcode the fixture's size (before M3's F4/N3)
+
+**Requirement:** Member 3's ADR-008 branch (`m3/adr008-not-reproduced`, commit `691e2c2`) adds three
+fixture test classes (F4, N3). Three of our real-run tests hardcoded counts from today's fixture, so CI's
+`runner` job would fail on M3's PR although M3 did nothing wrong.
+- Reproduced first, in a temporary worktree of M3's branch (scratchpad, removed afterwards): today's
+  `test_f3_two_polluters_are_found_by_minimisation` → `AssertionError: 14 != 12`;
+  `test_f3_two_polluters_verified` → `'minimised:  12 earlier tests …' not found`; the full runner suite
+  there also showed `test_all_thirteen_fixture_methods_in_alphabetical_class_order` → `16 != 13`.
+- Files: `runner/tests/test_diagnose.py` (search runs = earlier tests in the real order),
+  `runner/tests/test_cli.py` (the `minimised:` count from the report's `original_failing_order`),
+  `runner/tests/test_discovery.py` (renamed `test_every_fixture_test_method_once_in_alphabetical_class_order`:
+  expected set = every `@Test` method in the fixture sources, read independently of the discovery code;
+  no duplicates; classes alphabetical).
+- Mutation check on the discovery test: dropping `*Test` from the include rule → FAILED on the set
+  comparison ("items in the second set but not the first"). A first version shared the include rule with
+  the code under test and failed only on an empty set — rewritten to be independent.
+- Full runner suite: on our branch `Ran 108 tests in 240.907s — OK`; on M3's fixture with these tests
+  `Ran 108 tests in 237.031s — OK`.
