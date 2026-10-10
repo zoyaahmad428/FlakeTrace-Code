@@ -1196,3 +1196,27 @@ this branch conflicted on exactly the three files I'd also touched.
 - Limitation: none. My own three-number fix (previous entry) is superseded, not wrong — kept
   in the log as an honest record of what was actually done at the time, not retroactively
   edited.
+
+## 2026-10-11 — Sync stale status docs to the real current state
+
+**Requirement:** PR #45 confirmed merged (all 4 CI jobs green on `main`'s tip). A full survey
+("what's left for M3 in Iteration 1") found several status docs describing a state that no
+longer matches reality — F3/W10 and ADR-008/F4/N3 had all landed since these were last
+written.
+
+- File/function: `docs/08-MidEval/iteration-plan.md` — W9's row updated to describe all 7
+  real fixture cases (F1-F4, N1-N3) and ADR-008; W10's row corrected from "PR pending" to
+  **Complete** (PR #35/#38/#40, merged); W11's row updated from "Not started" to **In
+  progress** (chapters drafted and sent, not yet confirmed incorporated, due a refresh).
+- File/function: `docs/09-Team/members.md` — M3's current-task row corrected (was still
+  saying "Only F3 remains, needs W10 — not started," when W10 had been merged for over a
+  day).
+- File/function: `docs/08-MidEval/panel-action-register.md` — A5 moved from `IN PROGRESS` to
+  **COMPLETE**: all 5 original fixture cases now run end to end through the real pipeline,
+  plus F4/N3 extend "diverse scenarios" further; summary table's completed/open lists updated
+  to match.
+- Command: `py -m unittest discover -s eval/tests -v`. Result: 80/80 passed (doc-only
+  session, sanity check).
+- Limitation: none. Report chapters 4/7/8 (drafted earlier, sent to the member) are flagged
+  as needing a refresh against this now-current state — not done in this entry, since it
+  needs the member's confirmation on whether/how they were incorporated first.

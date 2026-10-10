@@ -877,3 +877,27 @@ directly (regex for `package` and `@Test` methods) to build the expected set is 
 than hardcoding a count, and why that specific trade-off (a little more test code, zero
 future maintenance) was worth taking here — this is exactly the kind of fix that should
 survive the next fixture case without anyone touching `runner/tests/` again.
+
+## 2026-10-11 — Sync stale status docs after confirming PR #45 merged
+
+**What I asked:** "Check PR #45's CI status, then tell me what to do if anything's left for
+Iteration 1 for M3." Confirmed the merge first, then surveyed the real current state against
+what the status docs claimed before answering.
+
+**What was retained:** Nothing generated here needed review in the usual sense — these were
+factual corrections (W10 is merged, not pending; A5's cases are all run) checked against real
+PR/commit data before writing anything, not generated content taken on faith.
+
+**How it was verified:** Checked PR #35/#38/#40 (W10) are actually merged via the real PR
+history already gathered this session, rather than assuming from the ADR text alone. `py -m
+unittest discover -s eval/tests -v` → 80/80, sanity check only.
+
+**Errors found:** Three stale docs describing real, already-landed work as still pending —
+not a code bug, a documentation-lag issue from fast-moving parallel PRs this session.
+
+**Rejections:** None.
+
+Ownership checkpoint: be able to say, without checking anything, which of the original 5
+work packages this session was responsible for (W1-W4, half of W9) are genuinely done versus
+which still need action (the report chapters) — the iteration plan's own W9-W13 rows are now
+the accurate source for this.
